@@ -94,6 +94,7 @@ td .sm{display:block;color:var(--mut);font-size:13px}
 .chip.p{background:var(--amb-t);color:var(--amb)}
 .chip.r{background:var(--grn-t);color:var(--grn)}
 .chip.c{background:var(--gry-t);color:var(--mut)}
+.chip.l{background:#E6DFF0;color:#55407A}
 .chip.hi{background:var(--red-t);color:var(--red)}
 .cnt{color:var(--mut);font-size:13.5px;margin:0 0 8px}
 
@@ -347,6 +348,19 @@ function proximaValoracion(e, desde) {
   return m;
 }
 const tallaOf = e => { const x = segsOf(e.ID).find(z => z.Talla); return x ? x.Talla : ''; };
+const lactFin = ini => iso(addMonths(pd(ini), 6));   // 6 meses después del día de regreso
+function reintegroMatInc(e) {   // incapacidad por maternidad con valoración apta y fecha de reintegro (la más reciente)
+  return incsOf(e.ID).filter(i => esMaternidad(i) && norm(i.ReintegroResultado).startsWith('apta') && i.ReintegroFecha)
+    .sort((a, b) => String(b.ReintegroFecha).localeCompare(String(a.ReintegroFecha)))[0] || null;
+}
+function lactEstado(e) {
+  if (!e.LactanciaInicio) return null;
+  const t = todayD(), a = pd(e.LactanciaInicio), b = pd(e.LactanciaFin) || pd(lactFin(e.LactanciaInicio)), dias = diffDays(b, t);
+  if (t < a) return { txt: 'Programado', cls: 'p', act: false, dias };
+  if (t <= b) return { txt: 'Vigente', cls: 'i', act: true, dias };
+  return { txt: 'Terminado', cls: 'c', act: false, dias };
+}
+const lactActiva = e => { const x = lactEstado(e); return !!(x && x.act); };
 const imcDe = (kg, cm) => { const p = num(kg), t = num(cm); return (p && t) ? (p / Math.pow(t / 100, 2)).toFixed(1) : ''; };
 
 function estatus(e) {
@@ -395,6 +409,15 @@ function alertas(e) {
     else if (dF >= 0 && dF <= 14 && !val) add('media', `La incapacidad termina el ${fmt(last.Fin)} (en ${dF} día${dF === 1 ? '' : 's'}): agendar valoración de reintegro`);
     if (val && dF < 0 && norm(last.ReintegroResultado).startsWith('no apta')) add('alta', 'Valorada como no apta y sin nueva incapacidad registrada');
     if (val && dF < 0 && norm(last.ReintegroResultado).startsWith('apta') && last.ReintegroFecha && pd(last.ReintegroFecha) > t) add('info', `Reintegro programado para el ${fmt(last.ReintegroFecha)}`);
+  }
+  const ls = lactEstado(e);
+  if (ls && ls.act && ls.dias <= 14) add('media', `El periodo de lactancia termina el ${fmt(e.LactanciaFin)} (${ls.dias === 0 ? 'hoy' : 'en ' + ls.dias + ' día' + (ls.dias === 1 ? '' : 's')}): cerrar las adecuaciones`);
+  if (!e.LactanciaInicio) {
+    const ri = reintegroMatInc(e);
+    if (ri && ri.Lactancia !== 'No' && diffDays(t, pd(ri.ReintegroFecha)) <= 180) {
+      if (ri.Lactancia === 'Sí') add('media', 'La valoración indica lactancia: iniciar el periodo de lactancia');
+      else add('info', `Reintegro el ${fmt(ri.ReintegroFecha)}: definir si inicia periodo de lactancia`);
+    }
   }
   if (e.Riesgo === 'Alto') add('info', 'Embarazo de alto riesgo');
   return out.sort((a, b) => ({ alta: 0, media: 1, info: 2 }[a.n] - { alta: 0, media: 1, info: 2 }[b.n]));
@@ -479,6 +502,13 @@ const SEG_FIELDS = [
   { k: 'ProximaCita', label: 'Próxima valoración', type: 'date', hint: 'Sugerida cada mes; la última, una semana antes de la incapacidad estimada (SDG 34).' },
   { k: 'Responsable', label: 'Responsable', type: 'text' }
 ];
+const LACT_FIELDS = [
+  { k: 'LactanciaInicio', label: 'Inicio (día de regreso)', type: 'date' },
+  { k: 'LactanciaFin', label: 'Fin (6 meses después)', type: 'date', hint: 'Se calcula con el inicio; puedes adelantarla si deja de lactar.' },
+  { k: 'LactanciaHorario', label: 'Horario de los dos reposos de 30 minutos', type: 'text', hint: 'Ejemplo: 10:00 y 14:00, o salida una hora antes.' },
+  { k: 'LactanciaLugar', label: 'Lugar asignado para lactancia o extracción', type: 'text' },
+  { k: 'LactanciaNotas', label: 'Notas', type: 'textarea' }
+];
 const TIPOS_INC = ['Maternidad (pre y posnatal)', 'Enfermedad general durante el embarazo', 'Amenaza de aborto o complicación obstétrica', 'Complicación del puerperio'];
 const INC_FIELDS = [
   { k: 'Tipo', label: 'Tipo de incapacidad', type: 'select', opts: TIPOS_INC, full: 1 },
@@ -490,7 +520,7 @@ const VAL_FIELDS = [
   { k: 'ReintegroFechaValoracion', label: 'Fecha de la valoración', type: 'date' },
   { k: 'ReintegroResultado', label: 'Resultado', type: 'select', opts: ['Apta sin restricciones', 'Apta con restricciones o adecuaciones', 'No apta: requiere continuar en incapacidad'] },
   { k: 'ReintegroFecha', label: 'Fecha de reintegro', type: 'date' },
-  { k: 'Lactancia', label: 'Lactancia', type: 'select', opts: ['No', 'Sí'], hint: 'Si es Sí, registra las adecuaciones abajo.' },
+  { k: 'Lactancia', label: 'Lactancia', type: 'select', opts: ['No', 'Sí'], hint: 'Si es Sí y la trabajadora es apta, se inicia el periodo de lactancia (6 meses desde el día de regreso).' },
   { k: 'ReintegroRestricciones', label: 'Restricciones y adecuaciones al reintegro', type: 'textarea' },
   { k: 'ReintegroMedico', label: 'Médico que valoró', type: 'text' },
   { k: 'ReintegroNotas', label: 'Notas', type: 'textarea' }
@@ -572,6 +602,7 @@ function panelHTML() {
   const prox = act.map(({ e }) => ({ e, f: fppOf(e) })).filter(x => x.f && !x.e.FechaParto && diffDays(x.f, todayD()) >= -7 && diffDays(x.f, todayD()) <= 60).sort((a, b) => a.f - b.f);
   const proxInc = act.filter(x => x.st === 'Gestación').map(({ e }) => ({ e, i: incapEstimada(e) }))
     .filter(x => x.i && !x.e.FechaParto && !incsOf(x.e.ID).some(esMaternidad) && diffDays(x.i, todayD()) >= -7 && diffDays(x.i, todayD()) <= 60).sort((a, b) => a.i - b.i);
+  const lact = state.emb.filter(lactActiva).map(e => ({ e, x: lactEstado(e) })).sort((a, b) => a.x.dias - b.x.dias);
   return `
   <div class="kpis">${kpi('Gestación', 'Gestantes en seguimiento')}${kpi('En incapacidad', 'En incapacidad')}${kpi('Reintegro pendiente', 'Reintegro por valorar')}${kpi('Reincorporada', 'Reincorporadas')}</div>
   <div class="cols">
@@ -593,6 +624,7 @@ function panelHTML() {
       <div class="box"><h2>Gestantes por trimestre</h2>
         <div class="bars">${['1.er', '2.º', '3.er'].map((t, i) => `<div class="bar r"><span>${t} trimestre</span><i style="width:${tri[i] / maxT * 100}%"></i><em>${tri[i]}</em></div>`).join('')}</div>
       </div>
+      ${lact.length ? `<div class="box"><h2>Periodos de lactancia vigentes</h2><ul class="alist">${lact.map(({ e, x }) => `<li><button class="rowbtn" data-act="abrir" data-id="${e.ID}"><span class="dot info"></span><span><span class="who">${esc(e.Nombre)}</span> <span class="sub">· ${esc(e.Planta || '')}</span><br><span class="sub">Hasta ${fmt(e.LactanciaFin || lactFin(e.LactanciaInicio))} · ${x.dias} día${x.dias === 1 ? '' : 's'}</span></span></button></li>`).join('')}</ul></div>` : ''}
       ${inf.length ? `<div class="box"><h2>Avisos</h2><ul class="alist">${inf.map(a => `<li><button class="rowbtn" data-act="abrir" data-id="${a.e.ID}"><span class="dot info"></span><span><span class="who">${esc(a.e.Nombre)}</span><br><span class="sub">${esc(a.txt)}</span></span></button></li>`).join('')}</ul></div>` : ''}
     </div>
   </div>`;
@@ -613,7 +645,7 @@ function rowsHTML() {
       <td>${esc(e.Planta || '—')}<span class="sm">${esc(e.Puesto || '')}</span></td>
       <td style="min-width:170px">${st === 'Gestación' || st === 'En incapacidad' ? `<b>SDG ${sdgTxt(s)}</b>` : '<span class="sm" style="display:inline">—</span>'}${ribbon(e, true)}</td>
       <td>${f ? fmt(iso(f)) : '—'}${e.Riesgo === 'Alto' ? '<span class="sm" style="color:var(--red)">Alto riesgo</span>' : ''}</td>
-      <td>${chip(e)}</td>
+      <td>${chip(e)}${lactActiva(e) ? ' <span class="chip l">Lactancia</span>' : ''}</td>
       <td>${a ? `<span class="chip hi">${a} alerta${a > 1 ? 's' : ''}</span>` : ''}</td></tr>`;
   }).join('');
 }
@@ -680,6 +712,20 @@ function planInc(e) {
     <div><span>Próxima valoración</span><b>${prox ? fmt(iso(prox)) + ' · ' + rel(prox) : (l ? 'Sin fecha pendiente' : 'Aún sin valoraciones')}</b></div></div></div>`;
 }
 
+function tabLac(e) {
+  const x = lactEstado(e), ri = reintegroMatInc(e);
+  if (!x) {
+    return `<article class="ev"><div class="ev-h"><strong>Periodo de lactancia</strong><span class="chip c">No iniciado</span></div>
+      <p>${ri ? `Reintegro el ${fmt(ri.ReintegroFecha)}. Si inicia lactancia, el periodo correría hasta el ${fmt(lactFin(ri.ReintegroFecha))} (6 meses).` : 'Se prepara al registrar el reintegro tras la incapacidad por maternidad. También puedes iniciarlo manualmente.'}</p>
+      <button class="btn pri" data-act="lact">Iniciar periodo de lactancia</button></article>`;
+  }
+  const rest = x.act ? `${x.dias} día${x.dias === 1 ? '' : 's'}` : (x.txt === 'Programado' ? 'Aún no inicia' : `Terminó hace ${-x.dias} día${x.dias === -1 ? '' : 's'}`);
+  return `<article class="ev"><div class="ev-h"><strong>Periodo de lactancia</strong><span class="chip ${x.cls}">${x.txt}</span><span class="grow"></span>
+    <button class="btn sm ghost" data-act="lact">Editar</button><button class="btn sm ghost" data-act="lact-quitar">Quitar</button></div>
+    <div class="dl" style="margin-top:10px">${dlItem('Inicio', fmt(e.LactanciaInicio))}${dlItem('Fin', fmt(e.LactanciaFin || lactFin(e.LactanciaInicio)))}${dlItem('Tiempo restante', rest)}
+    ${dlItem('Horario de los reposos', e.LactanciaHorario)}${dlItem('Lugar asignado', e.LactanciaLugar)}${e.LactanciaNotas ? dlItem('Notas', e.LactanciaNotas, 1) : ''}</div></article>`;
+}
+
 function tabInc(e) {
   const L = incsOf(e.ID), t = todayD();
   return `<div class="toolbar"><span class="grow cnt" style="margin:0">${L.length} incapacidad${L.length === 1 ? '' : 'es'} registrada${L.length === 1 ? '' : 's'}</span><button class="btn pri" data-act="inc-nueva">Registrar incapacidad</button></div>
@@ -704,17 +750,17 @@ function tabInc(e) {
 function fichaHTML() {
   const e = embById(state.sel); if (!e) { state.view = 'lista'; return listaHTML(); }
   const al = alertas(e), s = sdgOf(e), st = estatus(e);
-  const tabs = [['ant', 'Antecedentes'], ['seg', 'Valoraciones'], ['inc', 'Incapacidad y reintegro']];
+  const tabs = [['ant', 'Antecedentes'], ['seg', 'Valoraciones'], ['inc', 'Incapacidad y reintegro'], ['lac', 'Lactancia']];
   return `
   <div class="fhead"><div><button class="btn sm ghost" data-act="volver">← Embarazadas</button>
     <h1 style="margin-top:8px">${esc(e.Nombre)}</h1>
     <div class="meta">N.º ${esc(e.Numero)} · ${esc(e.Planta || 'Sin planta')}${e.Puesto ? ' · ' + esc(e.Puesto) : ''}${e.Turno ? ' · ' + esc(e.Turno) : ''}</div>
-    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${lactActiva(e) ? `<span class="chip l">Lactancia hasta ${fmt(e.LactanciaFin)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
     <div class="acts"><button class="btn" data-act="desenlace">Finalizar seguimiento</button><button class="btn pri" data-act="seg-nuevo">Nueva valoración</button><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
   ${al.length ? `<div class="alerts">${al.map(a => `<div class="al ${a.n}">${esc(a.txt)}</div>`).join('')}</div>` : ''}
   <div class="box">${ribbon(e, false)}${planInc(e)}</div>
   <div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${state.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
-  <div>${state.tab === 'seg' ? tabSeg(e) : state.tab === 'inc' ? tabInc(e) : tabAnt(e)}</div>`;
+  <div>${state.tab === 'seg' ? tabSeg(e) : state.tab === 'inc' ? tabInc(e) : state.tab === 'lac' ? tabLac(e) : tabAnt(e)}</div>`;
 }
 
 function render() {
@@ -821,6 +867,28 @@ function formSeg(e, s) {
   });
 }
 
+function formLact(e) {
+  const nuevo = !e.LactanciaInicio, ri = reintegroMatInc(e), base = { ...e };
+  if (nuevo) { base.LactanciaInicio = ri ? ri.ReintegroFecha : iso(todayD()); base.LactanciaFin = lactFin(base.LactanciaInicio); }
+  openModal({
+    title: nuevo ? 'Iniciar periodo de lactancia' : 'Editar periodo de lactancia',
+    body: `<p class="mut" style="margin-top:0">Dos reposos extraordinarios de media hora al día, hasta por 6 meses (art. 170, fracc. IV, LFT).</p>` + formHTML(LACT_FIELDS, base),
+    onOpen() {
+      const fin = $('#f_LactanciaFin'); if (!nuevo) fin.dataset.manual = '1';
+      fin.addEventListener('input', () => { fin.dataset.manual = '1'; });
+      $('#f_LactanciaInicio').addEventListener('change', () => { const v = $('#f_LactanciaInicio').value; if (v && !fin.dataset.manual) fin.value = lactFin(v); });
+    },
+    async onSave() {
+      const v = readForm(LACT_FIELDS);
+      if (!v.LactanciaInicio) return modalError('Captura el día de inicio (el día de regreso).'), false;
+      if (!v.LactanciaFin) v.LactanciaFin = lactFin(v.LactanciaInicio);
+      if (pd(v.LactanciaFin) < pd(v.LactanciaInicio)) return modalError('El fin no puede ser anterior al inicio.'), false;
+      await guardar('Embarazadas', { ...e, ...v });
+      cerrar(); toast(nuevo ? 'Periodo de lactancia iniciado' : 'Periodo de lactancia actualizado'); state.tab = 'lac'; render();
+    }
+  });
+}
+
 function formInc(e, i) {
   const nueva = !i; i = i || { Tipo: TIPOS_INC[0] };
   openModal({
@@ -857,7 +925,12 @@ function formVal(e, i) {
       if (v.ReintegroResultado.startsWith('Apta') && !v.ReintegroFecha) return modalError('Si es apta, captura la fecha de reintegro.'), false;
       if (v.ReintegroResultado.startsWith('No apta')) v.ReintegroFecha = '';
       await guardar('Incapacidades', { ...i, ...v });
-      cerrar(); toast('Valoración guardada'); render();
+      let msg = 'Valoración guardada';
+      if (v.Lactancia === 'Sí' && v.ReintegroResultado.startsWith('Apta') && v.ReintegroFecha && esMaternidad(i) && !e.LactanciaInicio) {
+        await guardar('Embarazadas', { ...e, LactanciaInicio: v.ReintegroFecha, LactanciaFin: lactFin(v.ReintegroFecha) });
+        msg = 'Valoración guardada · periodo de lactancia iniciado';
+      }
+      cerrar(); toast(msg); render();
     }
   });
 }
@@ -870,6 +943,8 @@ const ACCIONES = {
   volver: () => ir('lista'),
   editar: () => formEmbarazada(embById(state.sel)),
   desenlace: () => formDesenlace(embById(state.sel)),
+  lact: () => formLact(embById(state.sel)),
+  'lact-quitar': () => confirmar('Quitar periodo de lactancia', 'Se borrarán las fechas y los datos del periodo de lactancia de esta trabajadora.', 'Quitar', async () => { const e = embById(state.sel); await guardar('Embarazadas', { ...e, LactanciaInicio: '', LactanciaFin: '', LactanciaHorario: '', LactanciaLugar: '', LactanciaNotas: '' }); toast('Periodo de lactancia eliminado'); render(); }),
   eliminar: () => { const e = embById(state.sel); confirmar('Eliminar registro', `Se eliminará a ${e.Nombre} con todos sus seguimientos e incapacidades. Esta acción no se puede deshacer.`, 'Eliminar', async () => { await eliminar('Embarazadas', e.ID); toast('Registro eliminado'); ir('lista'); }); },
   tab: t => { state.tab = t.dataset.v; render(); },
   'seg-nuevo': () => formSeg(embById(state.sel), null),
