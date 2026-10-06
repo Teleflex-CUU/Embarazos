@@ -437,11 +437,13 @@ const EMB_FIELDS = [
   { k: 'Exposiciones', label: 'Exposiciones del puesto', type: 'multi', opts: EXPOSICIONES },
   { k: 'DecisionPuesto', label: 'Decisión sobre el puesto', type: 'select', opts: ['Continúa en su puesto', 'Continúa con restricciones', 'Reubicación temporal'] },
   { k: 'RestriccionesPuesto', label: 'Restricciones o adecuaciones', type: 'text' },
-  { sec: 'Desenlace' },
+  { sec: 'Notas' },
+  { k: 'Notas', label: 'Notas', type: 'textarea' }
+];
+const DES_FIELDS = [
   { k: 'FechaParto', label: 'Fecha de parto o resolución', type: 'date' },
   { k: 'Resultado', label: 'Resultado obstétrico', type: 'select', opts: ['Parto', 'Cesárea', 'Aborto', 'Otro'] },
-  { k: 'Cerrado', label: 'Cerrar seguimiento', type: 'select', opts: ['No', 'Sí'], hint: 'Úsalo cuando ya no haya reintegro por valorar (por ejemplo, aborto sin incapacidad prolongada).' },
-  { k: 'Notas', label: 'Notas', type: 'textarea' }
+  { k: 'Cerrado', label: 'Cerrar seguimiento', type: 'select', opts: ['No', 'Sí'], hint: 'Úsalo cuando ya no haya reintegro por valorar (por ejemplo, un aborto sin incapacidad prolongada).' }
 ];
 const SEG_FIELDS = [
   { k: 'Fecha', label: 'Fecha', type: 'date' },
@@ -665,7 +667,7 @@ function fichaHTML() {
     <h1 style="margin-top:8px">${esc(e.Nombre)}</h1>
     <div class="meta">N.º ${esc(e.Numero)} · ${esc(e.Planta || 'Sin planta')}${e.Puesto ? ' · ' + esc(e.Puesto) : ''}${e.Turno ? ' · ' + esc(e.Turno) : ''}</div>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
-    <div class="acts"><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
+    <div class="acts"><button class="btn" data-act="desenlace">${(e.FechaParto || e.Resultado) ? 'Editar desenlace' : 'Registrar desenlace'}</button><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
   ${al.length ? `<div class="alerts">${al.map(a => `<div class="al ${a.n}">${esc(a.txt)}</div>`).join('')}</div>` : ''}
   <div class="box">${ribbon(e, false)}</div>
   <div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${state.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
@@ -684,6 +686,30 @@ function ir(view, id) { state.view = view; if (id) state.sel = id; window.scroll
 /* =========================================================
    ACCIONES
    ========================================================= */
+const keyNum = v => String(v ?? '').trim().replace(/^0+/, '');
+function ponerSelect(id, valor, opciones) {
+  const sel = $('#' + id); if (!sel || !valor) return;
+  const v = (opciones || []).find(o => norm(o) === norm(valor)) || valor;
+  if (![...sel.options].some(o => o.value === v)) sel.add(new Option(v, v));
+  sel.value = v;
+}
+function autollenar(final) {
+  const h = $('#emp-hint'), k = keyNum($('#f_Numero').value);
+  if (!h) return;
+  if (!k) { h.textContent = ''; return; }
+  const x = state.emp.find(z => keyNum(z.Numero) === k);
+  if (!x) {
+    h.textContent = final ? (state.emp.length ? 'No se encontró en HeadCount. Captura los datos a mano.' : 'No se cargó el maestro de empleados. Captura los datos a mano.') : '';
+    h.style.color = 'var(--amb)'; return;
+  }
+  $('#f_Nombre').value = x.Nombre || '';
+  $('#f_Puesto').value = x.Puesto || '';
+  ponerSelect('f_Planta', x.Planta, PLANTAS);
+  ponerSelect('f_Turno', x.Turno, ['Matutino', 'Vespertino', 'Nocturno', 'Mixto']);
+  if (x.FechaNacimiento) $('#f_FechaNacimiento').value = String(x.FechaNacimiento).slice(0, 10);
+  h.textContent = 'Datos tomados de HeadCount.'; h.style.color = 'var(--grn)';
+}
+
 function formEmbarazada(e) {
   const nueva = !e; e = e || { Cerrado: 'No', Riesgo: 'Bajo' };
   const dl = `<datalist id="dl-emp">${state.emp.map(x => `<option value="${esc(x.Numero)}">${esc(x.Nombre)}</option>`).join('')}</datalist>`;
@@ -691,13 +717,9 @@ function formEmbarazada(e) {
     title: nueva ? 'Nueva embarazada' : 'Editar datos',
     body: dl + formHTML(EMB_FIELDS, e),
     onOpen() {
-      $('#f_Numero').addEventListener('change', () => {
-        const x = state.emp.find(z => String(z.Numero) === $('#f_Numero').value.trim()); if (!x) return;
-        $('#f_Nombre').value = x.Nombre || ''; $('#f_Puesto').value = x.Puesto || '';
-        const sel = $('#f_Planta'), p = PLANTAS.find(pl => norm(pl) === norm(x.Planta)) || x.Planta;
-        if (p && ![...sel.options].some(o => o.value === p)) sel.add(new Option(p, p));
-        sel.value = p || '';
-      });
+      $('#f_Numero').insertAdjacentHTML('afterend', '<span class="hint" id="emp-hint"></span>');
+      $('#f_Numero').addEventListener('input', () => autollenar(false));
+      $('#f_Numero').addEventListener('change', () => autollenar(true));
       $('#f_FUM').addEventListener('change', () => { const f = pd($('#f_FUM').value); if (f) $('#f_FPP').value = iso(addDays(f, 280)); });
     },
     async onSave() {
@@ -712,6 +734,19 @@ function formEmbarazada(e) {
       const r = await guardar('Embarazadas', { ...e, ...v });
       cerrar(); toast(nueva ? 'Embarazada registrada' : 'Datos actualizados');
       if (nueva) { state.tab = 'ant'; ir('ficha', r.ID); } else render();
+    }
+  });
+}
+
+function formDesenlace(e) {
+  openModal({
+    title: 'Desenlace del embarazo',
+    body: `<p class="mut" style="margin-top:0">${esc(e.Nombre)}</p>` + formHTML(DES_FIELDS, e),
+    async onSave() {
+      const v = readForm(DES_FIELDS);
+      if (v.FechaParto && !v.Resultado) return modalError('Indica el resultado obstétrico.'), false;
+      await guardar('Embarazadas', { ...e, ...v, Cerrado: v.Cerrado || 'No' });
+      cerrar(); toast('Desenlace guardado'); render();
     }
   });
 }
@@ -777,6 +812,7 @@ const ACCIONES = {
   abrir: t => { state.tab = 'ant'; ir('ficha', t.dataset.id); },
   volver: () => ir('lista'),
   editar: () => formEmbarazada(embById(state.sel)),
+  desenlace: () => formDesenlace(embById(state.sel)),
   eliminar: () => { const e = embById(state.sel); confirmar('Eliminar registro', `Se eliminará a ${e.Nombre} con todos sus seguimientos e incapacidades. Esta acción no se puede deshacer.`, 'Eliminar', async () => { await eliminar('Embarazadas', e.ID); toast('Registro eliminado'); ir('lista'); }); },
   tab: t => { state.tab = t.dataset.v; render(); },
   'seg-nuevo': () => formSeg(embById(state.sel), null),
