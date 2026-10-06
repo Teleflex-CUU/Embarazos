@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguimiento de embarazadas · Salud Ocupacional</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1F4F5; --panel:#FFFFFF; --ink:#1D2A32; --mut:#5B6A74; --line:#D8E0E4;
+  --pri:#2D5B6C; --pri-d:#1F4352; --pri-t:#DCE8ED;
+  --rose:#B14B68; --rose-t:#F3D9E0;
+  --amb:#8F5C0E; --amb-t:#F6E7C8;
+  --red:#A8322D; --red-t:#F5D9D6;
+  --grn:#2B7352; --grn-t:#D6EBDF;
+  --gry-t:#E6EAEC;
+  --r:6px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Literata,Georgia,serif;font-weight:600;margin:0;line-height:1.25}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.hidden{display:none!important}
+
+/* Encabezado */
+header.top{background:var(--pri-d);color:#fff;position:sticky;top:0;z-index:20}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{font-family:Literata,Georgia,serif;font-size:18px;font-weight:600;margin-right:auto}
+.brand small{display:block;font:400 12px "Instrument Sans",sans-serif;opacity:.75}
+nav.tabs{display:flex;gap:4px}
+nav.tabs button{background:none;border:0;color:#fff;opacity:.78;padding:8px 14px;border-radius:var(--r);font-weight:500}
+nav.tabs button:hover{opacity:1;background:rgba(255,255,255,.1)}
+nav.tabs button.on{opacity:1;background:rgba(255,255,255,.18)}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:var(--r);font-weight:500}
+.btn:hover{border-color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--pri-d)}
+.btn.warn{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.ghost{background:none}
+.top .btn.pri{background:#fff;color:var(--pri-d);border-color:#fff}
+
+main{max-width:1180px;margin:0 auto;padding:22px 18px 80px}
+.banner{background:var(--amb-t);color:#5C3D06;border-bottom:1px solid #E5CE98;padding:8px 18px;font-size:13.5px;text-align:center}
+
+/* Panel */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.kpi{padding:18px 20px;border:0;background:none;text-align:left;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi:hover{background:#F8FAFB}
+.kpi b{display:block;font:600 38px/1.1 Literata,Georgia,serif}
+.kpi span{color:var(--mut);font-size:14px}
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:22px;margin-top:22px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.box h2{font-size:17px;margin-bottom:10px}
+.empty{color:var(--mut);padding:14px 0}
+.alist{list-style:none;margin:0;padding:0}
+.alist li{border-top:1px solid var(--line)}
+.alist li:first-child{border-top:0}
+.rowbtn{display:flex;gap:12px;align-items:baseline;width:100%;text-align:left;background:none;border:0;padding:10px 4px;border-radius:4px}
+.rowbtn:hover{background:#F5F8F9}
+.dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--mut);transform:translateY(1px)}
+.dot.alta{background:var(--red)} .dot.media{background:#D49A1F} .dot.info{background:var(--pri)}
+.rowbtn .who{font-weight:600}
+.rowbtn .sub{color:var(--mut);font-size:13.5px}
+.bars{display:grid;gap:8px;margin-top:4px}
+.bar{display:grid;grid-template-columns:96px 1fr 28px;gap:10px;align-items:center;font-size:14px}
+.bar i{display:block;height:10px;background:var(--pri);border-radius:2px;min-width:2px}
+.bar.r i{background:var(--rose)}
+.bar em{font-style:normal;text-align:right;font-weight:600}
+.box + .box{margin-top:22px}
+
+/* Lista */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filters input,.filters select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:#fff;min-width:150px}
+.filters input{flex:1;min-width:220px}
+.tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{text-align:left;font-weight:600;font-size:13px;color:var(--mut);padding:10px 14px;border-bottom:1px solid var(--line);background:#F8FAFB}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#F5F8F9}
+tbody tr:last-child td{border-bottom:0}
+td .nm{font-weight:600;background:none;border:0;padding:0;text-align:left}
+td .sm{display:block;color:var(--mut);font-size:13px}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip.g{background:var(--rose-t);color:#7D2A42}
+.chip.i{background:var(--pri-t);color:var(--pri-d)}
+.chip.p{background:var(--amb-t);color:var(--amb)}
+.chip.r{background:var(--grn-t);color:var(--grn)}
+.chip.c{background:var(--gry-t);color:var(--mut)}
+.chip.hi{background:var(--red-t);color:var(--red)}
+.cnt{color:var(--mut);font-size:13.5px;margin:0 0 8px}
+
+/* Cinta de gestación */
+.rib{margin-top:6px}
+.rib .cells{display:grid;grid-template-columns:repeat(46,1fr);gap:2px;height:22px}
+.rib.compact .cells{height:9px;min-width:150px}
+.rib i{display:block;background:#E3E8EB;border-radius:1px;position:relative}
+.rib i.pre{background:#EBDCB8}
+.rib i.post{background:#D3DEE4}
+.rib i.past{background:var(--rose)}
+.rib i.now{background:var(--ink);transform:scaleY(1.35)}
+.rib i.inc::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:4px;background:var(--pri);border-radius:1px}
+.rib.compact i.inc::after{bottom:-4px;height:3px}
+.rib .lbls{position:relative;height:18px;margin-top:9px;font-size:12px;color:var(--mut)}
+.rib .lbls span{position:absolute;white-space:nowrap}
+.rib .leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-top:6px}
+.rib .leg b{display:inline-block;width:12px;height:8px;margin-right:5px;vertical-align:baseline;border-radius:1px}
+
+/* Ficha */
+.fhead{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+.fhead h1{font-size:26px}
+.fhead .meta{color:var(--mut)}
+.fhead .acts{margin-left:auto;display:flex;gap:8px}
+.alerts{display:grid;gap:6px;margin-bottom:16px}
+.al{display:flex;gap:10px;align-items:baseline;padding:9px 12px;border-radius:var(--r);border-left:4px solid}
+.al.alta{background:var(--red-t);border-color:var(--red)}
+.al.media{background:var(--amb-t);border-color:#D49A1F}
+.al.info{background:var(--pri-t);border-color:var(--pri)}
+.stabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:22px 0 16px}
+.stabs button{background:none;border:0;padding:10px 16px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-1px}
+.stabs button.on{color:var(--ink);border-color:var(--pri)}
+.dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px 22px}
+.dl div span{display:block;font-size:13px;color:var(--mut)}
+.dl div b{font-weight:500}
+.dl .wide{grid-column:1/-1}
+h3.t{font-size:16px;margin:22px 0 10px;padding-top:16px;border-top:1px solid var(--line)}
+h3.t:first-child{margin-top:0;padding-top:0;border:0}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.toolbar .grow{margin-right:auto}
+.ev{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.ev-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ev-h .grow{margin-right:auto}
+.tag{background:var(--gry-t);border-radius:4px;padding:1px 8px;font-size:12.5px;color:var(--mut)}
+.ev p{margin:6px 0 0}
+.ev .mut{color:var(--mut);font-size:14px}
+.rv{margin-top:12px;padding:12px 14px;background:#F6F8F9;border-radius:var(--r);border:1px solid var(--line)}
+.rv h4{margin:0 0 6px;font-size:14px}
+
+/* Modal */
+.ov{position:fixed;inset:0;background:rgba(20,32,40,.5);z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:30px 12px}
+.modal{background:#fff;border-radius:8px;width:100%;max-width:760px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.modal.narrow{max-width:420px}
+.m-h{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.m-h h2{font-size:19px;margin-right:auto}
+.m-h button{background:none;border:0;font-size:22px;line-height:1;color:var(--mut)}
+.m-b{padding:18px 22px}
+.m-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;background:#F8FAFB;border-radius:0 0 8px 8px}
+.m-f .grow{margin-right:auto}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 16px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld.full{grid-column:1/-1}
+.fld label{font-size:13.5px;font-weight:500}
+.fld .hint{font-size:12.5px;color:var(--mut)}
+.fld input,.fld select,.fld textarea{padding:8px 10px;border:1px solid #BCC8CF;border-radius:var(--r);background:#fff;width:100%}
+.fld textarea{min-height:68px;resize:vertical}
+.multi{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 14px}
+.multi label{font-weight:400;display:flex;gap:8px;align-items:center}
+.multi input{width:auto}
+h3.sec{font-size:16px;margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+.m-b > .grid:first-child + h3.sec{margin-top:6px}
+.err{color:var(--red);font-size:13.5px;margin:10px 0 0}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:var(--r);z-index:90;max-width:90vw}
+.toast.bad{background:var(--red)}
+.center{min-height:60vh;display:grid;place-items:center;color:var(--mut)}
+
+@media (max-width:860px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi:nth-child(2){border-right:0}
+  .kpi:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .cols{grid-template-columns:1fr}
+  .grid,.multi{grid-template-columns:1fr}
+  .fhead .acts{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="banner" class="banner hidden">Modo de prueba: los datos se guardan solo en este navegador. Para conectar con Google Sheets, pega la URL de Apps Script en CONFIG.GAS_URL.</div>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">Seguimiento de embarazadas<small>Servicio Médico · Salud Ocupacional</small></div>
+    <nav class="tabs" id="nav">
+      <button data-act="nav" data-v="panel">Panel</button>
+      <button data-act="nav" data-v="lista">Embarazadas</button>
+    </nav>
+    <button class="btn pri" data-act="nueva">Nueva embarazada</button>
+  </div>
+</header>
+
+<main id="main"><div class="center">Cargando…</div></main>
+
+<div id="ov" class="ov hidden" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+const CONFIG = {
+  GAS_URL: 'https://script.google.com/macros/s/AKfycbzv7LDcs5QCQHsOeSid2X6ECBNNl_D86vvOkijMSkRhXvg95OYNnY7weOlJcvrOolys/exec'   // URL de la implementación de Apps Script. Vacío = modo de prueba (localStorage)
+};
+const DEMO = !CONFIG.GAS_URL;
+const PLANTAS = ['Américas','Juventud','Cantera','Barrancas'];
+const DIAS_INCAPACIDAD_MATERNIDAD = 84;   // 42 antes + 42 después
+const SDG_INCAPACIDAD = 34;               // 6 semanas antes de la FPP
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const pad = n => String(n).padStart(2, '0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const pd = s => { if (!s) return null; const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return (y && m && d) ? new Date(y, m - 1, d) : null; };
+const todayD = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const diffDays = (a, b) => Math.round((Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()) - Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())) / 864e5);
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fmt = s => { const d = pd(s); return d ? `${pad(d.getDate())} ${MESES[d.getMonth()]} ${d.getFullYear()}` : '—'; };
+const uid = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const num = v => (v === '' || v == null || isNaN(Number(v))) ? null : Number(v);
+
+/* =========================================================
+   DATOS: API (Apps Script) o modo de prueba (localStorage)
+   ========================================================= */
+const state = { emb: [], seg: [], inc: [], emp: [], view: 'panel', sel: null, tab: 'ant', f: { q: '', est: '', planta: '' } };
+
+const LS_KEY = 'seg_embarazadas_demo_v1';
+let memDB = null;
+function demoRead() {
+  try { const t = localStorage.getItem(LS_KEY); if (t) return JSON.parse(t); } catch (e) {}
+  return memDB;
+}
+function demoWrite(db) {
+  memDB = db;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (e) {}
+}
+function demoSeed() {
+  const t = todayD(), D = n => iso(addDays(t, n));
+  const e1 = { ID: 'd1', Numero: '10234', Nombre: 'María Fernanda Ortiz Lara', Planta: 'Américas', Puesto: 'Operador de ensamble', Turno: 'Matutino', FechaNacimiento: '1994-03-12', Menarca: '12', CicloMenstrual: 'Regular', Gestas: '2', Partos: '1', Cesareas: '0', Abortos: '0', MetodoPlanificacion: 'Barrera', CirugiasGineco: '', ComplicacionesPrevias: '', Comorbilidades: '', FUM: D(-140), FPP: D(140), Riesgo: 'Bajo', Exposiciones: 'Bipedestación prolongada; Posturas forzadas', DecisionPuesto: 'Continúa con restricciones', RestriccionesPuesto: 'Alternar posición sentada/de pie cada hora', FechaParto: '', Resultado: '', Cerrado: 'No', Notas: '' };
+  const e2 = { ID: 'd2', Numero: '10877', Nombre: 'Daniela Reyes Camacho', Planta: 'Juventud', Puesto: 'Inspector de calidad', Turno: 'Vespertino', FechaNacimiento: '1990-08-02', Menarca: '13', CicloMenstrual: 'Irregular', Gestas: '3', Partos: '1', Cesareas: '1', Abortos: '0', MetodoPlanificacion: 'DIU', CirugiasGineco: 'Cesárea 2021', ComplicacionesPrevias: 'Preeclampsia en el embarazo previo', Comorbilidades: 'Hipertensión arterial en tratamiento', FUM: D(-243), FPP: D(37), Riesgo: 'Alto', Exposiciones: 'Turno nocturno; Tiempo extra', DecisionPuesto: 'Continúa con restricciones', RestriccionesPuesto: 'Sin tiempo extra', FechaParto: '', Resultado: '', Cerrado: 'No', Notas: '' };
+  const e3 = { ID: 'd3', Numero: '09112', Nombre: 'Karla Beatriz Núñez Soto', Planta: 'Cantera', Puesto: 'Operador de moldeo', Turno: 'Matutino', FechaNacimiento: '1996-11-21', Menarca: '12', CicloMenstrual: 'Regular', Gestas: '1', Partos: '0', Cesareas: '0', Abortos: '0', MetodoPlanificacion: 'Ninguno', CirugiasGineco: '', ComplicacionesPrevias: '', Comorbilidades: '', FUM: D(-292), FPP: D(-12), Riesgo: 'Bajo', Exposiciones: 'Agentes químicos', DecisionPuesto: 'Reubicación temporal', RestriccionesPuesto: '', FechaParto: D(-14), Resultado: 'Parto', Cerrado: 'No', Notas: '' };
+  const seg = [
+    { ID: 's1', EmbID: 'd1', Fecha: D(-60), Tipo: 'Consulta en planta', TA: '110/70', Peso: '62', Hallazgos: 'Embarazo de curso normal. Se entregan recomendaciones de ergonomía.', Restricciones: 'Alternar posición cada hora', RestriccionesHasta: D(5), ProximaCita: D(-10), Responsable: '' },
+    { ID: 's2', EmbID: 'd2', Fecha: D(-12), Tipo: 'Consulta en planta', TA: '130/85', Peso: '78', Hallazgos: 'TA en límite superior. Se solicita nota de control prenatal.', Restricciones: 'Sin tiempo extra ni turno nocturno', RestriccionesHasta: '', ProximaCita: D(7), Responsable: '' },
+    { ID: 's3', EmbID: 'd3', Fecha: D(-30), Tipo: 'Control prenatal externo', TA: '112/72', Peso: '70', Hallazgos: 'Control prenatal IMSS. Sin complicaciones.', Restricciones: '', RestriccionesHasta: '', ProximaCita: '', Responsable: '' }
+  ];
+  const inc = [
+    { ID: 'i3', EmbID: 'd3', Tipo: 'Maternidad (pre y posnatal)', Folio: 'IMSS-0001', Inicio: D(-56), Fin: D(27), ReintegroFechaValoracion: '', ReintegroResultado: '', ReintegroFecha: '', ReintegroRestricciones: '', Lactancia: '', ReintegroMedico: '', ReintegroNotas: '' },
+    { ID: 'i1', EmbID: 'd1', Tipo: 'Enfermedad general durante el embarazo', Folio: '', Inicio: D(-20), Fin: D(-4), ReintegroFechaValoracion: '', ReintegroResultado: '', ReintegroFecha: '', ReintegroRestricciones: '', Lactancia: '', ReintegroMedico: '', ReintegroNotas: '' }
+  ];
+  const emp = [
+    { Numero: '10234', Nombre: 'María Fernanda Ortiz Lara', Planta: 'Américas', Puesto: 'Operador de ensamble' },
+    { Numero: '10555', Nombre: 'Lucía Hernández Prieto', Planta: 'Barrancas', Puesto: 'Empaque' },
+    { Numero: '10877', Nombre: 'Daniela Reyes Camacho', Planta: 'Juventud', Puesto: 'Inspector de calidad' }
+  ];
+  return { Embarazadas: [e1, e2, e3], Seguimientos: seg, Incapacidades: inc, Empleados: emp };
+}
+const TABLAS = { Embarazadas: 'emb', Seguimientos: 'seg', Incapacidades: 'inc' };
+
+async function demoApi(action, p) {
+  let db = demoRead(); if (!db) { db = demoSeed(); demoWrite(db); }
+  if (action === 'getAll') return { ok: true, ...JSON.parse(JSON.stringify(db)) };
+  if (action === 'save') {
+    const arr = db[p.tabla], r = { ...p.registro }, now = new Date().toISOString();
+    if (!r.ID) r.ID = uid();
+    r.Actualizado = now;
+    const i = arr.findIndex(x => x.ID === r.ID);
+    if (i >= 0) { r.Creado = arr[i].Creado || now; arr[i] = r; } else { r.Creado = now; arr.push(r); }
+    demoWrite(db);
+    return { ok: true, registro: r };
+  }
+  if (action === 'remove') {
+    db[p.tabla] = db[p.tabla].filter(x => x.ID !== p.id);
+    if (p.tabla === 'Embarazadas') { db.Seguimientos = db.Seguimientos.filter(x => x.EmbID !== p.id); db.Incapacidades = db.Incapacidades.filter(x => x.EmbID !== p.id); }
+    demoWrite(db);
+    return { ok: true };
+  }
+  return { ok: false, error: 'Acción no reconocida' };
+}
+
+async function api(action, payload = {}) {
+  if (DEMO) return demoApi(action, payload);
+  const clave = sessionStorage.getItem('clave') || '';
+  let r;
+  if (action === 'getAll') r = await fetch(`${CONFIG.GAS_URL}?action=getAll&clave=${encodeURIComponent(clave)}`);
+  else r = await fetch(CONFIG.GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, clave, ...payload }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Error del servidor');
+  return j;
+}
+
+async function cargar() {
+  const j = await api('getAll');
+  state.emb = j.Embarazadas || []; state.seg = j.Seguimientos || []; state.inc = j.Incapacidades || []; state.emp = j.Empleados || [];
+}
+async function guardar(tabla, reg) {
+  const j = await api('save', { tabla, registro: reg });
+  const arr = state[TABLAS[tabla]], i = arr.findIndex(x => x.ID === j.registro.ID);
+  if (i >= 0) arr[i] = j.registro; else arr.push(j.registro);
+  return j.registro;
+}
+async function eliminar(tabla, id) {
+  await api('remove', { tabla, id });
+  state[TABLAS[tabla]] = state[TABLAS[tabla]].filter(x => x.ID !== id);
+  if (tabla === 'Embarazadas') { state.seg = state.seg.filter(x => x.EmbID !== id); state.inc = state.inc.filter(x => x.EmbID !== id); }
+}
+
+/* =========================================================
+   LÓGICA CLÍNICA
+   ========================================================= */
+const fumOf = e => pd(e.FUM) || (pd(e.FPP) ? addDays(pd(e.FPP), -280) : null);
+const fppOf = e => pd(e.FPP) || (pd(e.FUM) ? addDays(pd(e.FUM), 280) : null);
+function sdgOf(e, ref = todayD()) {
+  const f = fumOf(e); if (!f) return null;
+  const d = diffDays(ref, f);
+  return { days: d, w: Math.floor(d / 7), r: ((d % 7) + 7) % 7 };
+}
+const trim = w => w < 14 ? 1 : (w < 28 ? 2 : 3);
+const sdgTxt = s => s ? `${s.w}+${s.r}` : '—';
+const edadDe = e => { const n = pd(e.FechaNacimiento); if (!n) return null; const t = todayD(); let a = t.getFullYear() - n.getFullYear(); if (t < new Date(t.getFullYear(), n.getMonth(), n.getDate())) a--; return a; };
+const segsOf = id => state.seg.filter(s => s.EmbID === id).sort((a, b) => String(b.Fecha).localeCompare(String(a.Fecha)));
+const incsOf = id => state.inc.filter(s => s.EmbID === id).sort((a, b) => String(a.Inicio).localeCompare(String(b.Inicio)));
+const esMaternidad = i => /^Maternidad/.test(i.Tipo || '');
+const latestInc = id => incsOf(id).filter(i => i.Inicio && i.Fin).reduce((a, b) => (!a || String(b.Fin) > String(a.Fin)) ? b : a, null);
+
+function estatus(e) {
+  if (e.Cerrado === 'Sí') return 'Cerrada';
+  const last = latestInc(e.ID);
+  if (!last) return 'Gestación';
+  const t = todayD();
+  if (pd(last.Inicio) > t) return 'Gestación';
+  if (pd(last.Fin) >= t) return 'En incapacidad';
+  const apta = norm(last.ReintegroResultado).startsWith('apta');
+  if (apta && last.ReintegroFecha && pd(last.ReintegroFecha) <= t) {
+    return (!e.FechaParto && !esMaternidad(last)) ? 'Gestación' : 'Reincorporada';
+  }
+  return 'Reintegro pendiente';
+}
+const CHIP = { 'Gestación': 'g', 'En incapacidad': 'i', 'Reintegro pendiente': 'p', 'Reincorporada': 'r', 'Cerrada': 'c' };
+const ESTATUS = Object.keys(CHIP);
+
+function alertas(e) {
+  const out = [], add = (n, txt) => out.push({ n, txt });
+  const st = estatus(e), t = todayD();
+  if (st === 'Cerrada') return out;
+  const s = sdgOf(e), incs = incsOf(e.ID), segs = segsOf(e.ID), l = segs[0];
+  const tieneMat = incs.some(esMaternidad);
+  if (st === 'Gestación') {
+    if (s && !e.FechaParto) {
+      if (s.w >= 42) add('alta', `SDG ${s.w}: confirmar el desenlace obstétrico`);
+      else if (s.w >= SDG_INCAPACIDAD && !tieneMat) add(s.w >= 36 ? 'alta' : 'media', `SDG ${s.w}: registrar la incapacidad por maternidad`);
+    }
+    if (!l) add('media', 'Sin seguimiento registrado');
+    else {
+      const d = diffDays(t, pd(l.Fecha));
+      if (d > 30) add('media', `Sin seguimiento desde hace ${d} días`);
+      if (l.ProximaCita && pd(l.ProximaCita) < t) add('media', `Cita de seguimiento vencida (${fmt(l.ProximaCita)})`);
+      if (l.Restricciones && l.RestriccionesHasta) {
+        const r = diffDays(pd(l.RestriccionesHasta), t);
+        if (r < 0) add('media', `Restricciones vencidas desde el ${fmt(l.RestriccionesHasta)}: renovar o liberar`);
+        else if (r <= 7) add('info', `Las restricciones vencen el ${fmt(l.RestriccionesHasta)}`);
+      }
+    }
+  }
+  const last = latestInc(e.ID);
+  if (last && pd(last.Inicio) <= t) {
+    const dF = diffDays(pd(last.Fin), t), val = !!last.ReintegroFechaValoracion;
+    if (dF < 0 && !val) add('alta', `La incapacidad terminó hace ${-dF} día${-dF === 1 ? '' : 's'}: falta la valoración de reintegro`);
+    else if (dF >= 0 && dF <= 14 && !val) add('media', `La incapacidad termina el ${fmt(last.Fin)} (en ${dF} día${dF === 1 ? '' : 's'}): agendar valoración de reintegro`);
+    if (val && dF < 0 && norm(last.ReintegroResultado).startsWith('no apta')) add('alta', 'Valorada como no apta y sin nueva incapacidad registrada');
+    if (val && dF < 0 && norm(last.ReintegroResultado).startsWith('apta') && last.ReintegroFecha && pd(last.ReintegroFecha) > t) add('info', `Reintegro programado para el ${fmt(last.ReintegroFecha)}`);
+  }
+  if (e.Riesgo === 'Alto') add('info', 'Embarazo de alto riesgo');
+  return out.sort((a, b) => ({ alta: 0, media: 1, info: 2 }[a.n] - { alta: 0, media: 1, info: 2 }[b.n]));
+}
+
+/* Cinta de gestación: 40 semanas + 6 de puerperio. Marca la semana actual y las incapacidades. */
+function ribbon(e, compact) {
+  const f = fumOf(e); if (!f) return '<span class="mut">Sin FUM/FPP</span>';
+  const N = 46, cur = diffDays(todayD(), f);
+  const incs = incsOf(e.ID).filter(i => i.Inicio && i.Fin).map(i => [diffDays(pd(i.Inicio), f), diffDays(pd(i.Fin), f)]);
+  let c = '';
+  for (let i = 0; i < N; i++) {
+    const a = i * 7, b = a + 6; let k = '';
+    if (i >= 40) k = 'post'; else if (i >= SDG_INCAPACIDAD - 1) k = 'pre';
+    if (cur > b) k += ' past'; else if (cur >= a) k += ' now';
+    if (incs.some(([x, y]) => x <= b && y >= a)) k += ' inc';
+    c += `<i class="${k}" title="Semana ${i + 1}${i >= 40 ? ' (puerperio)' : ''}"></i>`;
+  }
+  if (compact) return `<div class="rib compact"><div class="cells">${c}</div></div>`;
+  const L = [[0, 'Inicio'], [13, '2.º trimestre'], [27, '3.º trimestre'], [33, 'SDG 34'], [40, 'FPP']]
+    .map(([i, t]) => `<span style="left:${i / N * 100}%">${t}</span>`).join('');
+  return `<div class="rib"><div class="cells">${c}</div><div class="lbls">${L}</div>
+    <div class="leg"><span><b style="background:var(--rose)"></b>Transcurrido</span><span><b style="background:var(--ink)"></b>Semana actual</span><span><b style="background:#EBDCB8"></b>Desde SDG 34</span><span><b style="background:#D3DEE4"></b>Puerperio (6 sem)</span><span><b style="background:var(--pri)"></b>Incapacidad registrada</span></div></div>`;
+}
+
+/* =========================================================
+   FORMULARIOS (definición por esquema)
+   ========================================================= */
+const EXPOSICIONES = ['Agentes químicos', 'Radiaciones ionizantes', 'Calor o frío extremos', 'Ruido o vibración', 'Carga física / levantamiento', 'Bipedestación prolongada', 'Posturas forzadas', 'Riesgo biológico', 'Turno nocturno', 'Tiempo extra', 'Estrés / carga mental'];
+const EMB_FIELDS = [
+  { sec: 'Trabajadora' },
+  { k: 'Numero', label: 'Número de empleado', type: 'text', list: 'dl-emp' },
+  { k: 'Nombre', label: 'Nombre completo', type: 'text' },
+  { k: 'Planta', label: 'Planta', type: 'select', opts: PLANTAS },
+  { k: 'Puesto', label: 'Puesto', type: 'text' },
+  { k: 'Turno', label: 'Turno', type: 'select', opts: ['Matutino', 'Vespertino', 'Nocturno', 'Mixto'] },
+  { k: 'FechaNacimiento', label: 'Fecha de nacimiento', type: 'date' },
+  { sec: 'Antecedentes ginecoobstétricos' },
+  { k: 'Menarca', label: 'Menarca (edad en años)', type: 'number' },
+  { k: 'CicloMenstrual', label: 'Ritmo menstrual', type: 'select', opts: ['Regular', 'Irregular'] },
+  { k: 'Gestas', label: 'Gestas (incluye la actual)', type: 'number' },
+  { k: 'Partos', label: 'Partos', type: 'number' },
+  { k: 'Cesareas', label: 'Cesáreas', type: 'number' },
+  { k: 'Abortos', label: 'Abortos', type: 'number' },
+  { k: 'MetodoPlanificacion', label: 'Método de planificación familiar previo', type: 'select', opts: ['Ninguno', 'Hormonal oral', 'Hormonal inyectable o implante', 'DIU', 'Barrera', 'Definitivo (OTB)', 'Otro'] },
+  { k: 'CirugiasGineco', label: 'Cirugías ginecológicas previas', type: 'text' },
+  { k: 'ComplicacionesPrevias', label: 'Complicaciones en embarazos previos', type: 'textarea', hint: 'Preeclampsia, diabetes gestacional, parto pretérmino, hemorragia, etc.' },
+  { k: 'Comorbilidades', label: 'Enfermedades crónicas y otros antecedentes relevantes', type: 'textarea' },
+  { sec: 'Embarazo actual' },
+  { k: 'FUM', label: 'Fecha de última menstruación (FUM)', type: 'date' },
+  { k: 'FPP', label: 'Fecha probable de parto (FPP)', type: 'date', hint: 'Se calcula con la FUM; puedes corregirla con el ultrasonido.' },
+  { k: 'Riesgo', label: 'Riesgo obstétrico', type: 'select', opts: ['Bajo', 'Alto'] },
+  { sec: 'Puesto de trabajo' },
+  { k: 'Exposiciones', label: 'Exposiciones del puesto', type: 'multi', opts: EXPOSICIONES },
+  { k: 'DecisionPuesto', label: 'Decisión sobre el puesto', type: 'select', opts: ['Continúa en su puesto', 'Continúa con restricciones', 'Reubicación temporal'] },
+  { k: 'RestriccionesPuesto', label: 'Restricciones o adecuaciones', type: 'text' },
+  { sec: 'Desenlace' },
+  { k: 'FechaParto', label: 'Fecha de parto o resolución', type: 'date' },
+  { k: 'Resultado', label: 'Resultado obstétrico', type: 'select', opts: ['Parto', 'Cesárea', 'Aborto', 'Otro'] },
+  { k: 'Cerrado', label: 'Cerrar seguimiento', type: 'select', opts: ['No', 'Sí'], hint: 'Úsalo cuando ya no haya reintegro por valorar (por ejemplo, aborto sin incapacidad prolongada).' },
+  { k: 'Notas', label: 'Notas', type: 'textarea' }
+];
+const SEG_FIELDS = [
+  { k: 'Fecha', label: 'Fecha', type: 'date' },
+  { k: 'Tipo', label: 'Tipo de contacto', type: 'select', opts: ['Consulta en planta', 'Control prenatal externo', 'Evaluación de puesto', 'Llamada o mensaje', 'Otro'] },
+  { k: 'TA', label: 'Tensión arterial (mmHg)', type: 'text' },
+  { k: 'Peso', label: 'Peso (kg)', type: 'number' },
+  { k: 'Hallazgos', label: 'Hallazgos y observaciones', type: 'textarea' },
+  { k: 'Restricciones', label: 'Restricciones vigentes', type: 'textarea' },
+  { k: 'RestriccionesHasta', label: 'Restricciones vigentes hasta', type: 'date' },
+  { k: 'ProximaCita', label: 'Próxima cita', type: 'date' },
+  { k: 'Responsable', label: 'Responsable', type: 'text' }
+];
+const TIPOS_INC = ['Maternidad (pre y posnatal)', 'Enfermedad general durante el embarazo', 'Amenaza de aborto o complicación obstétrica', 'Complicación del puerperio'];
+const INC_FIELDS = [
+  { k: 'Tipo', label: 'Tipo de incapacidad', type: 'select', opts: TIPOS_INC, full: 1 },
+  { k: 'Folio', label: 'Folio del certificado', type: 'text' },
+  { k: 'Inicio', label: 'Inicio de la incapacidad', type: 'date' },
+  { k: 'Fin', label: 'Fin de la incapacidad', type: 'date' }
+];
+const VAL_FIELDS = [
+  { k: 'ReintegroFechaValoracion', label: 'Fecha de la valoración', type: 'date' },
+  { k: 'ReintegroResultado', label: 'Resultado', type: 'select', opts: ['Apta sin restricciones', 'Apta con restricciones o adecuaciones', 'No apta: requiere continuar en incapacidad'] },
+  { k: 'ReintegroFecha', label: 'Fecha de reintegro', type: 'date' },
+  { k: 'Lactancia', label: 'Lactancia', type: 'select', opts: ['No', 'Sí'], hint: 'Si es Sí, registra las adecuaciones abajo.' },
+  { k: 'ReintegroRestricciones', label: 'Restricciones y adecuaciones al reintegro', type: 'textarea' },
+  { k: 'ReintegroMedico', label: 'Médico que valoró', type: 'text' },
+  { k: 'ReintegroNotas', label: 'Notas', type: 'textarea' }
+];
+
+function fieldHTML(f, v) {
+  v = v ?? '';
+  const id = 'f_' + f.k, full = (f.full || f.type === 'textarea' || f.type === 'multi') ? ' full' : '';
+  let ctl = '';
+  if (f.type === 'select') {
+    const opts = f.opts.includes(v) || v === '' ? f.opts : [...f.opts, v];
+    ctl = `<select id="${id}"><option value=""></option>${opts.map(o => `<option${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  } else if (f.type === 'textarea') ctl = `<textarea id="${id}">${esc(v)}</textarea>`;
+  else if (f.type === 'multi') {
+    const sel = String(v).split(';').map(s => s.trim());
+    ctl = `<div class="multi" id="${id}">${f.opts.map(o => `<label><input type="checkbox" value="${esc(o)}"${sel.includes(o) ? ' checked' : ''}>${esc(o)}</label>`).join('')}</div>`;
+  } else ctl = `<input id="${id}" type="${f.type}"${f.type === 'number' ? ' min="0" step="any"' : ''} value="${esc(v)}"${f.list ? ` list="${f.list}" autocomplete="off"` : ''}>`;
+  return `<div class="fld${full}"><label for="${id}">${esc(f.label)}</label>${ctl}${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ''}</div>`;
+}
+function formHTML(fields, vals) {
+  return '<div class="grid">' + fields.map(f => f.sec ? `</div><h3 class="sec">${esc(f.sec)}</h3><div class="grid">` : fieldHTML(f, vals[f.k])).join('') + '</div>';
+}
+function readForm(fields) {
+  const o = {};
+  fields.filter(f => f.k).forEach(f => {
+    const el = $('#f_' + f.k);
+    if (f.type === 'multi') o[f.k] = $$('input:checked', el).map(i => i.value).join('; ');
+    else o[f.k] = el.value.trim();
+  });
+  return o;
+}
+
+/* =========================================================
+   MODAL Y AVISOS
+   ========================================================= */
+function openModal({ title, body, saveLabel = 'Guardar', onSave, extra = '', onOpen, narrow, noFooter }) {
+  const m = $('#modal'); m.className = 'modal' + (narrow ? ' narrow' : ''); delete m.dataset.okG;
+  m.innerHTML = `<div class="m-h"><h2>${esc(title)}</h2><button type="button" data-act="cerrar" aria-label="Cerrar">×</button></div>
+    <form id="mform" novalidate><div class="m-b">${body}<p class="err hidden" id="merr"></p></div>
+    ${noFooter ? '' : `<div class="m-f">${extra ? `<span class="grow">${extra}</span>` : ''}<button type="button" class="btn" data-act="cerrar">Cancelar</button><button type="submit" class="btn pri">${esc(saveLabel)}</button></div>`}</form>`;
+  $('#ov').classList.remove('hidden');
+  $('#mform').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = $('button[type=submit]', m); if (btn) btn.disabled = true;
+    try { const r = await onSave(); if (r === false && btn) btn.disabled = false; }
+    catch (err) { modalError(err.message || 'No se pudo guardar'); if (btn) btn.disabled = false; }
+  });
+  if (onOpen) onOpen();
+  const first = $('input:not([type=checkbox]),select,textarea', m); if (first) first.focus();
+}
+function modalError(t) { const e = $('#merr'); if (e) { e.textContent = t; e.classList.remove('hidden'); } }
+function cerrar() { $('#ov').classList.add('hidden'); $('#modal').innerHTML = ''; }
+let toastT;
+function toast(t, bad) { const el = $('#toast'); el.textContent = t; el.className = 'toast' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => el.classList.add('hidden'), 3200); }
+function confirmar(titulo, texto, label, fn) {
+  openModal({ title: titulo, narrow: true, saveLabel: label, body: `<p style="margin:0">${esc(texto)}</p>`, onSave: async () => { await fn(); cerrar(); } });
+  const b = $('#modal button[type=submit]'); if (b) b.classList.add('warn'), b.classList.remove('pri');
+}
+
+/* =========================================================
+   VISTAS
+   ========================================================= */
+const embById = id => state.emb.find(e => e.ID === id);
+const chip = e => { const s = estatus(e); return `<span class="chip ${CHIP[s]}">${s}</span>`; };
+
+function panelHTML() {
+  const L = state.emb.map(e => ({ e, st: estatus(e) }));
+  const cnt = s => L.filter(x => x.st === s).length;
+  const kpi = (s, label) => `<button class="kpi" data-act="filtrar" data-v="${s}"><b>${cnt(s)}</b><span>${label}</span></button>`;
+  const al = [];
+  L.forEach(({ e }) => alertas(e).forEach(a => al.push({ e, ...a })));
+  al.sort((a, b) => ({ alta: 0, media: 1, info: 2 }[a.n] - { alta: 0, media: 1, info: 2 }[b.n]));
+  const urg = al.filter(a => a.n !== 'info').slice(0, 40), inf = al.filter(a => a.n === 'info');
+  const act = L.filter(x => x.st === 'Gestación' || x.st === 'En incapacidad' || x.st === 'Reintegro pendiente');
+  const byP = {}; act.forEach(({ e }) => { const p = e.Planta || 'Sin planta'; byP[p] = (byP[p] || 0) + 1; });
+  const maxP = Math.max(1, ...Object.values(byP));
+  const tri = [0, 0, 0]; L.filter(x => x.st === 'Gestación').forEach(({ e }) => { const s = sdgOf(e); if (s) tri[trim(s.w) - 1]++; });
+  const maxT = Math.max(1, ...tri);
+  const prox = act.map(({ e }) => ({ e, f: fppOf(e) })).filter(x => x.f && !x.e.FechaParto && diffDays(x.f, todayD()) >= -7 && diffDays(x.f, todayD()) <= 60).sort((a, b) => a.f - b.f);
+  return `
+  <div class="kpis">${kpi('Gestación', 'Gestantes en seguimiento')}${kpi('En incapacidad', 'En incapacidad')}${kpi('Reintegro pendiente', 'Reintegro por valorar')}${kpi('Reincorporada', 'Reincorporadas')}</div>
+  <div class="cols">
+    <div>
+      <div class="box"><h2>Requieren atención</h2>
+        ${urg.length ? `<ul class="alist">${urg.map(a => `<li><button class="rowbtn" data-act="abrir" data-id="${a.e.ID}"><span class="dot ${a.n}"></span><span><span class="who">${esc(a.e.Nombre)}</span> <span class="sub">· ${esc(a.e.Planta || '')}</span><br><span class="sub" style="color:var(--ink)">${esc(a.txt)}</span></span></button></li>`).join('')}</ul>` : '<p class="empty">Nada pendiente por ahora.</p>'}
+      </div>
+      <div class="box"><h2>Partos probables en los próximos 60 días</h2>
+        ${prox.length ? `<ul class="alist">${prox.map(({ e, f }) => `<li><button class="rowbtn" data-act="abrir" data-id="${e.ID}"><span class="dot info"></span><span><span class="who">${esc(e.Nombre)}</span> <span class="sub">· ${esc(e.Planta || '')}</span><br><span class="sub">FPP ${fmt(iso(f))} · SDG ${sdgTxt(sdgOf(e))}${e.Riesgo === 'Alto' ? ' · alto riesgo' : ''}</span></span></button></li>`).join('')}</ul>` : '<p class="empty">Sin partos probables en ese periodo.</p>'}
+      </div>
+    </div>
+    <div>
+      <div class="box"><h2>Casos activos por planta</h2>
+        ${Object.keys(byP).length ? `<div class="bars">${Object.entries(byP).sort((a, b) => b[1] - a[1]).map(([p, n]) => `<div class="bar"><span>${esc(p)}</span><i style="width:${n / maxP * 100}%"></i><em>${n}</em></div>`).join('')}</div>` : '<p class="empty">Sin casos activos.</p>'}
+      </div>
+      <div class="box"><h2>Gestantes por trimestre</h2>
+        <div class="bars">${['1.er', '2.º', '3.er'].map((t, i) => `<div class="bar r"><span>${t} trimestre</span><i style="width:${tri[i] / maxT * 100}%"></i><em>${tri[i]}</em></div>`).join('')}</div>
+      </div>
+      ${inf.length ? `<div class="box"><h2>Avisos</h2><ul class="alist">${inf.map(a => `<li><button class="rowbtn" data-act="abrir" data-id="${a.e.ID}"><span class="dot info"></span><span><span class="who">${esc(a.e.Nombre)}</span><br><span class="sub">${esc(a.txt)}</span></span></button></li>`).join('')}</ul></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function rowsHTML() {
+  const { q, est, planta } = state.f, nq = norm(q);
+  const rank = { 'Gestación': 0, 'En incapacidad': 1, 'Reintegro pendiente': 2, 'Reincorporada': 3, 'Cerrada': 4 };
+  const L = state.emb.map(e => ({ e, st: estatus(e) }))
+    .filter(x => (!nq || norm(x.e.Nombre).includes(nq) || norm(x.e.Numero).includes(nq)) && (!est || x.st === est) && (!planta || x.e.Planta === planta))
+    .sort((a, b) => rank[a.st] - rank[b.st] || String(a.e.FPP || a.e.FUM || '').localeCompare(String(b.e.FPP || b.e.FUM || '')));
+  $('#cnt') && ($('#cnt').textContent = `${L.length} de ${state.emb.length} registros`);
+  if (!L.length) return `<tr><td colspan="6" class="empty" style="text-align:center">${state.emb.length ? 'Ningún registro coincide con los filtros.' : 'Aún no hay embarazadas registradas. Usa “Nueva embarazada”.'}</td></tr>`;
+  return L.map(({ e, st }) => {
+    const s = sdgOf(e), a = alertas(e).filter(x => x.n !== 'info').length, f = fppOf(e);
+    return `<tr data-act="abrir" data-id="${e.ID}">
+      <td><button class="nm" data-act="abrir" data-id="${e.ID}">${esc(e.Nombre)}</button><span class="sm">N.º ${esc(e.Numero)}</span></td>
+      <td>${esc(e.Planta || '—')}<span class="sm">${esc(e.Puesto || '')}</span></td>
+      <td style="min-width:170px">${st === 'Gestación' || st === 'En incapacidad' ? `<b>SDG ${sdgTxt(s)}</b>` : '<span class="sm" style="display:inline">—</span>'}${ribbon(e, true)}</td>
+      <td>${f ? fmt(iso(f)) : '—'}${e.Riesgo === 'Alto' ? '<span class="sm" style="color:var(--red)">Alto riesgo</span>' : ''}</td>
+      <td>${chip(e)}</td>
+      <td>${a ? `<span class="chip hi">${a} alerta${a > 1 ? 's' : ''}</span>` : ''}</td></tr>`;
+  }).join('');
+}
+function listaHTML() {
+  const plantas = [...new Set([...PLANTAS, ...state.emb.map(e => e.Planta).filter(Boolean)])];
+  return `<div class="filters">
+    <input id="q" type="search" placeholder="Buscar por nombre o número de empleado" value="${esc(state.f.q)}" aria-label="Buscar">
+    <select id="fest" aria-label="Estatus"><option value="">Todos los estatus</option>${ESTATUS.map(s => `<option${state.f.est === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
+    <select id="fpla" aria-label="Planta"><option value="">Todas las plantas</option>${plantas.map(s => `<option${state.f.planta === s ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select>
+  </div>
+  <p class="cnt" id="cnt"></p>
+  <div class="tablewrap"><table><thead><tr><th>Trabajadora</th><th>Planta y puesto</th><th>Avance</th><th>FPP</th><th>Estatus</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>`;
+}
+
+function dlItem(label, val, wide) { return `<div${wide ? ' class="wide"' : ''}><span>${esc(label)}</span><b>${val ? esc(val) : '—'}</b></div>`; }
+
+function tabAnt(e) {
+  const g = [['G', e.Gestas], ['P', e.Partos], ['C', e.Cesareas], ['A', e.Abortos]].map(([k, v]) => `${k}${v === '' || v == null ? '–' : v}`).join(' ');
+  const s = sdgOf(e), f = fppOf(e), edad = edadDe(e);
+  return `
+  <h3 class="t">Antecedentes ginecoobstétricos</h3>
+  <div class="dl">
+    ${dlItem('Fórmula obstétrica', g)}${dlItem('Menarca', e.Menarca ? e.Menarca + ' años' : '')}${dlItem('Ritmo menstrual', e.CicloMenstrual)}
+    ${dlItem('Planificación familiar previa', e.MetodoPlanificacion)}${dlItem('Cirugías ginecológicas', e.CirugiasGineco)}
+    ${dlItem('Complicaciones en embarazos previos', e.ComplicacionesPrevias, 1)}${dlItem('Enfermedades crónicas y otros antecedentes', e.Comorbilidades, 1)}
+  </div>
+  <h3 class="t">Embarazo actual</h3>
+  <div class="dl">
+    ${dlItem('FUM', e.FUM ? fmt(e.FUM) : '')}${dlItem('FPP', f ? fmt(iso(f)) : '')}${dlItem('Semanas de gestación hoy', s && s.days >= 0 ? sdgTxt(s) + ' (' + trim(s.w) + '.º trimestre)' : '')}
+    ${dlItem('Riesgo obstétrico', e.Riesgo)}${dlItem('Edad', edad != null ? edad + ' años' : '')}${dlItem('Turno', e.Turno)}
+  </div>
+  <h3 class="t">Puesto de trabajo</h3>
+  <div class="dl">
+    ${dlItem('Exposiciones', e.Exposiciones, 1)}${dlItem('Decisión sobre el puesto', e.DecisionPuesto)}${dlItem('Restricciones o adecuaciones', e.RestriccionesPuesto)}
+  </div>
+  ${(e.FechaParto || e.Resultado || e.Notas) ? `<h3 class="t">Desenlace y notas</h3><div class="dl">${dlItem('Fecha de resolución', e.FechaParto ? fmt(e.FechaParto) : '')}${dlItem('Resultado', e.Resultado)}${dlItem('Notas', e.Notas, 1)}</div>` : ''}`;
+}
+
+function tabSeg(e) {
+  const L = segsOf(e.ID);
+  return `<div class="toolbar"><span class="grow cnt" style="margin:0">${L.length} registro${L.length === 1 ? '' : 's'} de seguimiento</span><button class="btn pri" data-act="seg-nuevo">Nuevo seguimiento</button></div>
+  ${L.length ? L.map(s => {
+    const g = sdgOf(e, pd(s.Fecha)), vit = [s.TA && `TA ${s.TA}`, s.Peso && `${s.Peso} kg`].filter(Boolean).join(' · ');
+    return `<article class="ev"><div class="ev-h"><strong>${fmt(s.Fecha)}</strong><span class="tag">${esc(s.Tipo || 'Seguimiento')}</span>${g && g.days >= 0 ? `<span class="mut">SDG ${sdgTxt(g)}</span>` : ''}<span class="grow"></span>
+      <button class="btn sm ghost" data-act="seg-edit" data-id="${s.ID}">Editar</button><button class="btn sm ghost" data-act="seg-del" data-id="${s.ID}">Eliminar</button></div>
+      ${vit ? `<p class="mut">${esc(vit)}</p>` : ''}${s.Hallazgos ? `<p>${esc(s.Hallazgos)}</p>` : ''}
+      ${s.Restricciones ? `<p><b>Restricciones:</b> ${esc(s.Restricciones)}${s.RestriccionesHasta ? ` (hasta ${fmt(s.RestriccionesHasta)})` : ''}</p>` : ''}
+      ${s.ProximaCita ? `<p class="mut">Próxima cita: ${fmt(s.ProximaCita)}${s.Responsable ? ' · ' + esc(s.Responsable) : ''}</p>` : (s.Responsable ? `<p class="mut">${esc(s.Responsable)}</p>` : '')}</article>`;
+  }).join('') : '<p class="empty">Todavía no hay seguimientos. Registra el primero para empezar el historial.</p>'}`;
+}
+
+function tabInc(e) {
+  const L = incsOf(e.ID), t = todayD();
+  return `<div class="toolbar"><span class="grow cnt" style="margin:0">${L.length} incapacidad${L.length === 1 ? '' : 'es'} registrada${L.length === 1 ? '' : 's'}</span><button class="btn pri" data-act="inc-nueva">Registrar incapacidad</button></div>
+  ${L.length ? L.slice().reverse().map(i => {
+    const dias = (pd(i.Inicio) && pd(i.Fin)) ? diffDays(pd(i.Fin), pd(i.Inicio)) + 1 : null;
+    const dF = pd(i.Fin) ? diffDays(pd(i.Fin), t) : null;
+    const est = pd(i.Inicio) > t ? ['Programada', 'i'] : (dF >= 0 ? ['Vigente', 'i'] : ['Terminada', 'c']);
+    const val = !!i.ReintegroFechaValoracion;
+    const urgente = !val && dF != null && dF <= 14 && pd(i.Inicio) <= t;
+    return `<article class="ev"><div class="ev-h"><strong>${esc(i.Tipo)}</strong><span class="chip ${est[1]}">${est[0]}</span><span class="grow"></span>
+      <button class="btn sm ghost" data-act="inc-edit" data-id="${i.ID}">Editar</button><button class="btn sm ghost" data-act="inc-del" data-id="${i.ID}">Eliminar</button></div>
+      <p>${fmt(i.Inicio)} al ${fmt(i.Fin)}${dias ? ` · ${dias} días` : ''}${i.Folio ? ` · Folio ${esc(i.Folio)}` : ''}</p>
+      <div class="rv"><h4>Valoración para reintegro</h4>
+      ${val ? `<div class="dl">${dlItem('Fecha de valoración', fmt(i.ReintegroFechaValoracion))}${dlItem('Resultado', i.ReintegroResultado)}${dlItem('Fecha de reintegro', i.ReintegroFecha ? fmt(i.ReintegroFecha) : '')}${dlItem('Lactancia', i.Lactancia)}${dlItem('Médico', i.ReintegroMedico)}${dlItem('Restricciones y adecuaciones', i.ReintegroRestricciones, 1)}${i.ReintegroNotas ? dlItem('Notas', i.ReintegroNotas, 1) : ''}</div>
+        <p style="margin-top:10px"><button class="btn sm" data-act="val" data-id="${i.ID}">Editar valoración</button></p>`
+        : `<p class="mut" style="margin:0 0 8px">${urgente ? (dF < 0 ? 'La incapacidad ya terminó y falta valorar el reintegro.' : `Termina en ${dF} día${dF === 1 ? '' : 's'}: conviene agendar la valoración.`) : 'Pendiente. Se registra cuando termina la incapacidad.'}</p>
+        <button class="btn sm ${urgente ? 'pri' : ''}" data-act="val" data-id="${i.ID}">Registrar valoración de reintegro</button>`}
+      </div></article>`;
+  }).join('') : '<p class="empty">Sin incapacidades. Registra el inicio y el fin para dar seguimiento al reintegro.</p>'}`;
+}
+
+function fichaHTML() {
+  const e = embById(state.sel); if (!e) { state.view = 'lista'; return listaHTML(); }
+  const al = alertas(e), s = sdgOf(e), st = estatus(e);
+  const tabs = [['ant', 'Antecedentes'], ['seg', 'Seguimiento'], ['inc', 'Incapacidad y reintegro']];
+  return `
+  <div class="fhead"><div><button class="btn sm ghost" data-act="volver">← Embarazadas</button>
+    <h1 style="margin-top:8px">${esc(e.Nombre)}</h1>
+    <div class="meta">N.º ${esc(e.Numero)} · ${esc(e.Planta || 'Sin planta')}${e.Puesto ? ' · ' + esc(e.Puesto) : ''}${e.Turno ? ' · ' + esc(e.Turno) : ''}</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
+    <div class="acts"><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
+  ${al.length ? `<div class="alerts">${al.map(a => `<div class="al ${a.n}">${esc(a.txt)}</div>`).join('')}</div>` : ''}
+  <div class="box">${ribbon(e, false)}</div>
+  <div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${state.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
+  <div>${state.tab === 'seg' ? tabSeg(e) : state.tab === 'inc' ? tabInc(e) : tabAnt(e)}</div>`;
+}
+
+function render() {
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === (state.view === 'ficha' ? 'lista' : state.view)));
+  const m = $('#main');
+  if (state.view === 'panel') m.innerHTML = panelHTML();
+  else if (state.view === 'lista') { m.innerHTML = listaHTML(); $('#rows').innerHTML = rowsHTML(); }
+  else m.innerHTML = fichaHTML();
+}
+function ir(view, id) { state.view = view; if (id) state.sel = id; window.scrollTo(0, 0); render(); }
+
+/* =========================================================
+   ACCIONES
+   ========================================================= */
+function formEmbarazada(e) {
+  const nueva = !e; e = e || { Cerrado: 'No', Riesgo: 'Bajo' };
+  const dl = `<datalist id="dl-emp">${state.emp.map(x => `<option value="${esc(x.Numero)}">${esc(x.Nombre)}</option>`).join('')}</datalist>`;
+  openModal({
+    title: nueva ? 'Nueva embarazada' : 'Editar datos',
+    body: dl + formHTML(EMB_FIELDS, e),
+    onOpen() {
+      $('#f_Numero').addEventListener('change', () => {
+        const x = state.emp.find(z => String(z.Numero) === $('#f_Numero').value.trim()); if (!x) return;
+        $('#f_Nombre').value = x.Nombre || ''; $('#f_Puesto').value = x.Puesto || '';
+        const sel = $('#f_Planta'), p = PLANTAS.find(pl => norm(pl) === norm(x.Planta)) || x.Planta;
+        if (p && ![...sel.options].some(o => o.value === p)) sel.add(new Option(p, p));
+        sel.value = p || '';
+      });
+      $('#f_FUM').addEventListener('change', () => { const f = pd($('#f_FUM').value); if (f) $('#f_FPP').value = iso(addDays(f, 280)); });
+    },
+    async onSave() {
+      const v = readForm(EMB_FIELDS);
+      if (!v.Numero || !v.Nombre) return modalError('Falta el número y el nombre de la trabajadora.'), false;
+      if (!v.FUM && !v.FPP) return modalError('Captura la FUM o la FPP para calcular las semanas de gestación.'), false;
+      const [g, p, c, a] = ['Gestas', 'Partos', 'Cesareas', 'Abortos'].map(k => num(v[k]));
+      if (g != null && (p || 0) + (c || 0) + (a || 0) + 1 > g && !$('#modal').dataset.okG) {
+        $('#modal').dataset.okG = '1';
+        return modalError('Las gestas son menos que partos + cesáreas + abortos + el embarazo actual. Corrígelas o vuelve a guardar para continuar así.'), false;
+      }
+      const r = await guardar('Embarazadas', { ...e, ...v });
+      cerrar(); toast(nueva ? 'Embarazada registrada' : 'Datos actualizados');
+      if (nueva) { state.tab = 'ant'; ir('ficha', r.ID); } else render();
+    }
+  });
+}
+
+function formSeg(e, s) {
+  const nuevo = !s; s = s || { Fecha: iso(todayD()), Tipo: 'Consulta en planta' };
+  openModal({
+    title: nuevo ? 'Nuevo seguimiento' : 'Editar seguimiento', body: formHTML(SEG_FIELDS, s),
+    async onSave() {
+      const v = readForm(SEG_FIELDS);
+      if (!v.Fecha) return modalError('Falta la fecha.'), false;
+      await guardar('Seguimientos', { ...s, ...v, EmbID: e.ID });
+      cerrar(); toast('Seguimiento guardado'); render();
+    }
+  });
+}
+
+function formInc(e, i) {
+  const nueva = !i; i = i || { Tipo: TIPOS_INC[0] };
+  openModal({
+    title: nueva ? 'Registrar incapacidad' : 'Editar incapacidad', body: formHTML(INC_FIELDS, i),
+    extra: `<button type="button" class="btn" id="sug">Sugerir fechas con la FPP</button>`,
+    onOpen() {
+      $('#sug').addEventListener('click', () => {
+        const f = fppOf(e); if (!f) return modalError('Esta trabajadora no tiene FPP ni FUM.');
+        const ini = addDays(f, -42); $('#f_Inicio').value = iso(ini); $('#f_Fin').value = iso(addDays(ini, DIAS_INCAPACIDAD_MATERNIDAD - 1));
+        $('#f_Tipo').value = TIPOS_INC[0];
+      });
+      $('#f_Inicio').addEventListener('change', () => {
+        const a = pd($('#f_Inicio').value);
+        if (a && !$('#f_Fin').value && /^Maternidad/.test($('#f_Tipo').value)) $('#f_Fin').value = iso(addDays(a, DIAS_INCAPACIDAD_MATERNIDAD - 1));
+      });
+    },
+    async onSave() {
+      const v = readForm(INC_FIELDS);
+      if (!v.Inicio || !v.Fin) return modalError('Captura el inicio y el fin de la incapacidad.'), false;
+      if (pd(v.Fin) < pd(v.Inicio)) return modalError('El fin no puede ser anterior al inicio.'), false;
+      await guardar('Incapacidades', { ...i, ...v, EmbID: e.ID });
+      cerrar(); toast('Incapacidad guardada'); render();
+    }
+  });
+}
+
+function formVal(e, i) {
+  const base = { ...i }; if (!base.ReintegroFechaValoracion) { base.ReintegroFechaValoracion = iso(todayD()); base.Lactancia = base.Lactancia || 'No'; }
+  openModal({
+    title: 'Valoración para reintegro', body: `<p class="mut" style="margin-top:0">Incapacidad del ${fmt(i.Inicio)} al ${fmt(i.Fin)}.</p>` + formHTML(VAL_FIELDS, base),
+    async onSave() {
+      const v = readForm(VAL_FIELDS);
+      if (!v.ReintegroFechaValoracion || !v.ReintegroResultado) return modalError('Falta la fecha y el resultado de la valoración.'), false;
+      if (v.ReintegroResultado.startsWith('Apta') && !v.ReintegroFecha) return modalError('Si es apta, captura la fecha de reintegro.'), false;
+      if (v.ReintegroResultado.startsWith('No apta')) v.ReintegroFecha = '';
+      await guardar('Incapacidades', { ...i, ...v });
+      cerrar(); toast('Valoración guardada'); render();
+    }
+  });
+}
+
+const ACCIONES = {
+  nav: t => { state.f = { q: '', est: '', planta: '' }; ir(t.dataset.v); },
+  filtrar: t => { state.f = { q: '', est: t.dataset.v, planta: '' }; ir('lista'); },
+  nueva: () => formEmbarazada(null),
+  abrir: t => { state.tab = 'ant'; ir('ficha', t.dataset.id); },
+  volver: () => ir('lista'),
+  editar: () => formEmbarazada(embById(state.sel)),
+  eliminar: () => { const e = embById(state.sel); confirmar('Eliminar registro', `Se eliminará a ${e.Nombre} con todos sus seguimientos e incapacidades. Esta acción no se puede deshacer.`, 'Eliminar', async () => { await eliminar('Embarazadas', e.ID); toast('Registro eliminado'); ir('lista'); }); },
+  tab: t => { state.tab = t.dataset.v; render(); },
+  'seg-nuevo': () => formSeg(embById(state.sel), null),
+  'seg-edit': t => formSeg(embById(state.sel), state.seg.find(x => x.ID === t.dataset.id)),
+  'seg-del': t => confirmar('Eliminar seguimiento', 'Se eliminará este registro de seguimiento.', 'Eliminar', async () => { await eliminar('Seguimientos', t.dataset.id); toast('Seguimiento eliminado'); render(); }),
+  'inc-nueva': () => formInc(embById(state.sel), null),
+  'inc-edit': t => formInc(embById(state.sel), state.inc.find(x => x.ID === t.dataset.id)),
+  'inc-del': t => confirmar('Eliminar incapacidad', 'Se eliminará la incapacidad y su valoración de reintegro.', 'Eliminar', async () => { await eliminar('Incapacidades', t.dataset.id); toast('Incapacidad eliminada'); render(); }),
+  val: t => formVal(embById(state.sel), state.inc.find(x => x.ID === t.dataset.id)),
+  cerrar: () => cerrar()
+};
+
+document.addEventListener('click', ev => {
+  if (ev.target.id === 'ov') return cerrar();
+  const t = ev.target.closest('[data-act]'); if (!t) return;
+  const fn = ACCIONES[t.dataset.act]; if (fn) { ev.stopPropagation(); fn(t); }
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#ov').classList.contains('hidden')) cerrar(); });
+document.addEventListener('input', ev => {
+  if (ev.target.id === 'q') { state.f.q = ev.target.value; $('#rows').innerHTML = rowsHTML(); }
+});
+document.addEventListener('change', ev => {
+  if (ev.target.id === 'fest') { state.f.est = ev.target.value; $('#rows').innerHTML = rowsHTML(); }
+  if (ev.target.id === 'fpla') { state.f.planta = ev.target.value; $('#rows').innerHTML = rowsHTML(); }
+});
+
+/* =========================================================
+   INICIO
+   ========================================================= */
+function pedirClave(msg) {
+  openModal({
+    title: 'Acceso', narrow: true, saveLabel: 'Entrar',
+    body: `<div class="fld"><label for="clave">Clave de acceso</label><input id="clave" type="password" autocomplete="current-password"></div>${msg ? `<p class="err">${esc(msg)}</p>` : ''}`,
+    async onSave() {
+      sessionStorage.setItem('clave', $('#clave').value);
+      try { await cargar(); cerrar(); render(); }
+      catch (err) { cerrar(); pedirClave(err.message === 'auth' ? 'Clave incorrecta.' : err.message); }
+    }
+  });
+  $$('#modal .m-h button, #modal .m-f .btn:not(.pri)').forEach(b => b.remove());
+}
+async function init() {
+  if (DEMO) $('#banner').classList.remove('hidden');
+  try { await cargar(); render(); }
+  catch (err) {
+    if (err.message === 'auth') pedirClave();
+    else $('#main').innerHTML = `<div class="center"><div><p><b>No se pudo cargar la información.</b></p><p>${esc(err.message)}</p><button class="btn pri" onclick="location.reload()">Reintentar</button></div></div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
