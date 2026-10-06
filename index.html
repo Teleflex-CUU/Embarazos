@@ -123,6 +123,7 @@ td .sm{display:block;color:var(--mut);font-size:13px}
 .al.alta{background:var(--red-t);border-color:var(--red)}
 .al.media{background:var(--amb-t);border-color:#D49A1F}
 .al.info{background:var(--pri-t);border-color:var(--pri)}
+.plan{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .stabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:22px 0 16px}
 .stabs button{background:none;border:0;padding:10px 16px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;margin-bottom:-1px}
 .stabs button.on{color:var(--ink);border-color:var(--pri)}
@@ -212,6 +213,7 @@ const DEMO = !CONFIG.GAS_URL;
 const PLANTAS = ['Américas','Juventud','Cantera','Barrancas'];
 const DIAS_INCAPACIDAD_MATERNIDAD = 84;   // 42 antes + 42 después
 const SDG_INCAPACIDAD = 34;               // 6 semanas antes de la FPP
+const DIAS_ANTES_ULTIMA_VALORACION = 7;   // la última valoración se sugiere una semana antes de la incapacidad estimada
 
 /* =========================================================
    UTILIDADES
@@ -252,8 +254,8 @@ function demoSeed() {
   const e2 = { ID: 'd2', Numero: '10877', Nombre: 'Daniela Reyes Camacho', Planta: 'Juventud', Puesto: 'Inspector de calidad', Turno: 'Vespertino', FechaNacimiento: '1990-08-02', Menarca: '13', CicloMenstrual: 'Irregular', Gestas: '3', Partos: '1', Cesareas: '1', Abortos: '0', MetodoPlanificacion: 'DIU', CirugiasGineco: 'Cesárea 2021', ComplicacionesPrevias: 'Preeclampsia en el embarazo previo', Comorbilidades: 'Hipertensión arterial en tratamiento', FUM: D(-243), FPP: D(37), Riesgo: 'Alto', Exposiciones: 'Turno nocturno; Tiempo extra', DecisionPuesto: 'Continúa con restricciones', RestriccionesPuesto: 'Sin tiempo extra', FechaParto: '', Resultado: '', Cerrado: 'No', Notas: '' };
   const e3 = { ID: 'd3', Numero: '09112', Nombre: 'Karla Beatriz Núñez Soto', Planta: 'Cantera', Puesto: 'Operador de moldeo', Turno: 'Matutino', FechaNacimiento: '1996-11-21', Menarca: '12', CicloMenstrual: 'Regular', Gestas: '1', Partos: '0', Cesareas: '0', Abortos: '0', MetodoPlanificacion: 'Ninguno', CirugiasGineco: '', ComplicacionesPrevias: '', Comorbilidades: '', FUM: D(-292), FPP: D(-12), Riesgo: 'Bajo', Exposiciones: 'Agentes químicos', DecisionPuesto: 'Reubicación temporal', RestriccionesPuesto: '', FechaParto: D(-14), Resultado: 'Parto', Cerrado: 'No', Notas: '' };
   const seg = [
-    { ID: 's1', EmbID: 'd1', Fecha: D(-60), Tipo: 'Consulta en planta', TA: '110/70', Peso: '62', Hallazgos: 'Embarazo de curso normal. Se entregan recomendaciones de ergonomía.', Restricciones: 'Alternar posición cada hora', RestriccionesHasta: D(5), ProximaCita: D(-10), Responsable: '' },
-    { ID: 's2', EmbID: 'd2', Fecha: D(-12), Tipo: 'Consulta en planta', TA: '130/85', Peso: '78', Hallazgos: 'TA en límite superior. Se solicita nota de control prenatal.', Restricciones: 'Sin tiempo extra ni turno nocturno', RestriccionesHasta: '', ProximaCita: D(7), Responsable: '' },
+    { ID: 's1', EmbID: 'd1', Fecha: D(-60), Tipo: 'Consulta en planta', TA: '110/70', FC: '78', Peso: '62', Talla: '160', FondoUterino: '20', FCF: '145', Edema: 'Ausente', Tratamientos: 'Hierro y ácido fólico', Hallazgos: 'Embarazo de curso normal. Se entregan recomendaciones de ergonomía.', Restricciones: 'Alternar posición cada hora', RestriccionesHasta: D(5), ProximaCita: D(-10), Responsable: '' },
+    { ID: 's2', EmbID: 'd2', Fecha: D(-12), Tipo: 'Consulta en planta', TA: '130/85', FC: '84', Peso: '78', Talla: '158', FondoUterino: '33', FCF: '140', Edema: 'Leve (+)', Tratamientos: 'Tratamiento indicado por su médico tratante', Hallazgos: 'TA en límite superior. Se solicita nota de control prenatal.', Restricciones: 'Sin tiempo extra ni turno nocturno', RestriccionesHasta: '', ProximaCita: D(7), Responsable: '' },
     { ID: 's3', EmbID: 'd3', Fecha: D(-30), Tipo: 'Control prenatal externo', TA: '112/72', Peso: '70', Hallazgos: 'Control prenatal IMSS. Sin complicaciones.', Restricciones: '', RestriccionesHasta: '', ProximaCita: '', Responsable: '' }
   ];
   const inc = [
@@ -335,6 +337,18 @@ const incsOf = id => state.inc.filter(s => s.EmbID === id).sort((a, b) => String
 const esMaternidad = i => /^Maternidad/.test(i.Tipo || '');
 const latestInc = id => incsOf(id).filter(i => i.Inicio && i.Fin).reduce((a, b) => (!a || String(b.Fin) > String(a.Fin)) ? b : a, null);
 
+const addMonths = (d, n) => { const x = new Date(d), dia = x.getDate(); x.setDate(1); x.setMonth(x.getMonth() + n); x.setDate(Math.min(dia, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return x; };
+const incapEstimada = e => { const f = fumOf(e); return f ? addDays(f, SDG_INCAPACIDAD * 7) : null; };   // SDG 34+0
+const ultimaValoracion = e => { const i = incapEstimada(e); return i ? addDays(i, -DIAS_ANTES_ULTIMA_VALORACION) : null; };
+function proximaValoracion(e, desde) {
+  if (incsOf(e.ID).some(esMaternidad)) return null;
+  const m = addMonths(desde, 1), u = ultimaValoracion(e);
+  if (u && m > u) return u > desde ? u : null;
+  return m;
+}
+const tallaOf = e => { const x = segsOf(e.ID).find(z => z.Talla); return x ? x.Talla : ''; };
+const imcDe = (kg, cm) => { const p = num(kg), t = num(cm); return (p && t) ? (p / Math.pow(t / 100, 2)).toFixed(1) : ''; };
+
 function estatus(e) {
   if (e.Cerrado === 'Sí') return 'Cerrada';
   const last = latestInc(e.ID);
@@ -362,11 +376,11 @@ function alertas(e) {
       if (s.w >= 42) add('alta', `SDG ${s.w}: confirmar el desenlace obstétrico`);
       else if (s.w >= SDG_INCAPACIDAD && !tieneMat) add(s.w >= 36 ? 'alta' : 'media', `SDG ${s.w}: registrar la incapacidad por maternidad`);
     }
-    if (!l) add('media', 'Sin seguimiento registrado');
+    if (!l) add('media', 'Sin valoraciones registradas');
     else {
       const d = diffDays(t, pd(l.Fecha));
-      if (d > 30) add('media', `Sin seguimiento desde hace ${d} días`);
-      if (l.ProximaCita && pd(l.ProximaCita) < t) add('media', `Cita de seguimiento vencida (${fmt(l.ProximaCita)})`);
+      if (d > 35) add('media', `Sin valoración desde hace ${d} días`);
+      if (l.ProximaCita && pd(l.ProximaCita) < t) add('media', `Valoración programada vencida (${fmt(l.ProximaCita)})`);
       if (l.Restricciones && l.RestriccionesHasta) {
         const r = diffDays(pd(l.RestriccionesHasta), t);
         if (r < 0) add('media', `Restricciones vencidas desde el ${fmt(l.RestriccionesHasta)}: renovar o liberar`);
@@ -446,14 +460,23 @@ const DES_FIELDS = [
   { k: 'Cerrado', label: 'Cerrar seguimiento', type: 'select', opts: ['No', 'Sí'], hint: 'Úsalo cuando ya no haya reintegro por valorar (por ejemplo, un aborto sin incapacidad prolongada).' }
 ];
 const SEG_FIELDS = [
-  { k: 'Fecha', label: 'Fecha', type: 'date' },
+  { k: 'Fecha', label: 'Fecha de la valoración', type: 'date' },
   { k: 'Tipo', label: 'Tipo de contacto', type: 'select', opts: ['Consulta en planta', 'Control prenatal externo', 'Evaluación de puesto', 'Llamada o mensaje', 'Otro'] },
-  { k: 'TA', label: 'Tensión arterial (mmHg)', type: 'text' },
+  { sec: 'Signos vitales y somatometría' },
+  { k: 'TA', label: 'Presión arterial (mmHg)', type: 'text', hint: 'Ejemplo: 110/70' },
+  { k: 'FC', label: 'Frecuencia cardiaca (lpm)', type: 'number' },
   { k: 'Peso', label: 'Peso (kg)', type: 'number' },
+  { k: 'Talla', label: 'Talla (cm)', type: 'number', hint: 'Obligatoria en la primera valoración; después se conserva.' },
+  { sec: 'Exploración obstétrica' },
+  { k: 'FondoUterino', label: 'Fondo uterino (cm)', type: 'number' },
+  { k: 'FCF', label: 'Frecuencia cardiaca fetal (lpm)', type: 'number' },
+  { k: 'Edema', label: 'Edema', type: 'select', opts: ['Ausente', 'Leve (+)', 'Moderado (++)', 'Severo (+++)'] },
+  { sec: 'Manejo y puesto de trabajo' },
+  { k: 'Tratamientos', label: 'Tratamientos actuales', type: 'textarea', hint: 'Se copian de la valoración anterior; corrígelos si cambiaron.' },
   { k: 'Hallazgos', label: 'Hallazgos y observaciones', type: 'textarea' },
   { k: 'Restricciones', label: 'Restricciones vigentes', type: 'textarea' },
   { k: 'RestriccionesHasta', label: 'Restricciones vigentes hasta', type: 'date' },
-  { k: 'ProximaCita', label: 'Próxima cita', type: 'date' },
+  { k: 'ProximaCita', label: 'Próxima valoración', type: 'date', hint: 'Sugerida cada mes; la última, una semana antes de la incapacidad estimada (SDG 34).' },
   { k: 'Responsable', label: 'Responsable', type: 'text' }
 ];
 const TIPOS_INC = ['Maternidad (pre y posnatal)', 'Enfermedad general durante el embarazo', 'Amenaza de aborto o complicación obstétrica', 'Complicación del puerperio'];
@@ -547,12 +570,17 @@ function panelHTML() {
   const tri = [0, 0, 0]; L.filter(x => x.st === 'Gestación').forEach(({ e }) => { const s = sdgOf(e); if (s) tri[trim(s.w) - 1]++; });
   const maxT = Math.max(1, ...tri);
   const prox = act.map(({ e }) => ({ e, f: fppOf(e) })).filter(x => x.f && !x.e.FechaParto && diffDays(x.f, todayD()) >= -7 && diffDays(x.f, todayD()) <= 60).sort((a, b) => a.f - b.f);
+  const proxInc = act.filter(x => x.st === 'Gestación').map(({ e }) => ({ e, i: incapEstimada(e) }))
+    .filter(x => x.i && !x.e.FechaParto && !incsOf(x.e.ID).some(esMaternidad) && diffDays(x.i, todayD()) >= -7 && diffDays(x.i, todayD()) <= 60).sort((a, b) => a.i - b.i);
   return `
   <div class="kpis">${kpi('Gestación', 'Gestantes en seguimiento')}${kpi('En incapacidad', 'En incapacidad')}${kpi('Reintegro pendiente', 'Reintegro por valorar')}${kpi('Reincorporada', 'Reincorporadas')}</div>
   <div class="cols">
     <div>
       <div class="box"><h2>Requieren atención</h2>
         ${urg.length ? `<ul class="alist">${urg.map(a => `<li><button class="rowbtn" data-act="abrir" data-id="${a.e.ID}"><span class="dot ${a.n}"></span><span><span class="who">${esc(a.e.Nombre)}</span> <span class="sub">· ${esc(a.e.Planta || '')}</span><br><span class="sub" style="color:var(--ink)">${esc(a.txt)}</span></span></button></li>`).join('')}</ul>` : '<p class="empty">Nada pendiente por ahora.</p>'}
+      </div>
+      <div class="box"><h2>Incapacidades probables en los próximos 60 días</h2>
+        ${proxInc.length ? `<ul class="alist">${proxInc.map(({ e, i }) => `<li><button class="rowbtn" data-act="abrir" data-id="${e.ID}"><span class="dot media"></span><span><span class="who">${esc(e.Nombre)}</span> <span class="sub">· ${esc(e.Planta || '')}</span><br><span class="sub">Incapacidad estimada ${fmt(iso(i))} · agendar última valoración hacia el ${fmt(iso(ultimaValoracion(e)))}</span></span></button></li>`).join('')}</ul>` : '<p class="empty">Ninguna en ese periodo.</p>'}
       </div>
       <div class="box"><h2>Partos probables en los próximos 60 días</h2>
         ${prox.length ? `<ul class="alist">${prox.map(({ e, f }) => `<li><button class="rowbtn" data-act="abrir" data-id="${e.ID}"><span class="dot info"></span><span><span class="who">${esc(e.Nombre)}</span> <span class="sub">· ${esc(e.Planta || '')}</span><br><span class="sub">FPP ${fmt(iso(f))} · SDG ${sdgTxt(sdgOf(e))}${e.Riesgo === 'Alto' ? ' · alto riesgo' : ''}</span></span></button></li>`).join('')}</ul>` : '<p class="empty">Sin partos probables en ese periodo.</p>'}
@@ -625,16 +653,31 @@ function tabAnt(e) {
 }
 
 function tabSeg(e) {
-  const L = segsOf(e.ID);
-  return `<div class="toolbar"><span class="grow cnt" style="margin:0">${L.length} registro${L.length === 1 ? '' : 's'} de seguimiento</span><button class="btn pri" data-act="seg-nuevo">Nuevo seguimiento</button></div>
+  const L = segsOf(e.ID), talla = tallaOf(e);
+  return `<div class="toolbar"><span class="grow cnt" style="margin:0">${L.length} ${L.length === 1 ? 'valoración' : 'valoraciones'}</span><button class="btn pri" data-act="seg-nuevo">Nueva valoración</button></div>
   ${L.length ? L.map(s => {
-    const g = sdgOf(e, pd(s.Fecha)), vit = [s.TA && `TA ${s.TA}`, s.Peso && `${s.Peso} kg`].filter(Boolean).join(' · ');
-    return `<article class="ev"><div class="ev-h"><strong>${fmt(s.Fecha)}</strong><span class="tag">${esc(s.Tipo || 'Seguimiento')}</span>${g && g.days >= 0 ? `<span class="mut">SDG ${sdgTxt(g)}</span>` : ''}<span class="grow"></span>
+    const g = sdgOf(e, pd(s.Fecha)), imc = imcDe(s.Peso, s.Talla || talla);
+    const vit = [s.TA && `TA ${s.TA}`, s.FC && `FC ${s.FC} lpm`, s.Peso && `${s.Peso} kg`, s.Talla && `${s.Talla} cm`, imc && `IMC ${imc}`].filter(Boolean).join(' · ');
+    const obs = [s.FondoUterino && `Fondo uterino ${s.FondoUterino} cm`, s.FCF && `FCF ${s.FCF} lpm`, s.Edema && `Edema: ${s.Edema}`].filter(Boolean).join(' · ');
+    return `<article class="ev"><div class="ev-h"><strong>${fmt(s.Fecha)}</strong><span class="tag">${esc(s.Tipo || 'Valoración')}</span>${g && g.days >= 0 ? `<span class="mut">SDG ${sdgTxt(g)}</span>` : ''}<span class="grow"></span>
       <button class="btn sm ghost" data-act="seg-edit" data-id="${s.ID}">Editar</button><button class="btn sm ghost" data-act="seg-del" data-id="${s.ID}">Eliminar</button></div>
-      ${vit ? `<p class="mut">${esc(vit)}</p>` : ''}${s.Hallazgos ? `<p>${esc(s.Hallazgos)}</p>` : ''}
+      ${vit ? `<p class="mut">${esc(vit)}</p>` : ''}${obs ? `<p class="mut">${esc(obs)}</p>` : ''}
+      ${s.Tratamientos ? `<p><b>Tratamientos actuales:</b> ${esc(s.Tratamientos)}</p>` : ''}${s.Hallazgos ? `<p>${esc(s.Hallazgos)}</p>` : ''}
       ${s.Restricciones ? `<p><b>Restricciones:</b> ${esc(s.Restricciones)}${s.RestriccionesHasta ? ` (hasta ${fmt(s.RestriccionesHasta)})` : ''}</p>` : ''}
-      ${s.ProximaCita ? `<p class="mut">Próxima cita: ${fmt(s.ProximaCita)}${s.Responsable ? ' · ' + esc(s.Responsable) : ''}</p>` : (s.Responsable ? `<p class="mut">${esc(s.Responsable)}</p>` : '')}</article>`;
-  }).join('') : '<p class="empty">Todavía no hay seguimientos. Registra el primero para empezar el historial.</p>'}`;
+      ${s.ProximaCita ? `<p class="mut">Próxima valoración: ${fmt(s.ProximaCita)}${s.Responsable ? ' · ' + esc(s.Responsable) : ''}</p>` : (s.Responsable ? `<p class="mut">${esc(s.Responsable)}</p>` : '')}</article>`;
+  }).join('') : '<p class="empty">Todavía no hay valoraciones. Registra la primera y captura la talla.</p>'}`;
+}
+
+function planInc(e) {
+  if (estatus(e) !== 'Gestación' || e.FechaParto || incsOf(e.ID).some(esMaternidad)) return '';
+  const inc = incapEstimada(e); if (!inc) return '';
+  const t = todayD(), u = ultimaValoracion(e), l = segsOf(e.ID)[0];
+  const rel = d => { const n = diffDays(d, t); return n === 0 ? 'hoy' : n > 0 ? `en ${n} día${n === 1 ? '' : 's'}` : `hace ${-n} día${n === -1 ? '' : 's'}`; };
+  const prox = l ? (l.ProximaCita ? pd(l.ProximaCita) : proximaValoracion(e, pd(l.Fecha))) : null;
+  return `<div class="plan"><div class="dl">
+    <div><span>Incapacidad estimada (SDG ${SDG_INCAPACIDAD})</span><b>${fmt(iso(inc))} · ${rel(inc)}</b></div>
+    <div><span>Última valoración sugerida</span><b>${fmt(iso(u))} · ${rel(u)}</b></div>
+    <div><span>Próxima valoración</span><b>${prox ? fmt(iso(prox)) + ' · ' + rel(prox) : (l ? 'Sin fecha pendiente' : 'Aún sin valoraciones')}</b></div></div></div>`;
 }
 
 function tabInc(e) {
@@ -661,7 +704,7 @@ function tabInc(e) {
 function fichaHTML() {
   const e = embById(state.sel); if (!e) { state.view = 'lista'; return listaHTML(); }
   const al = alertas(e), s = sdgOf(e), st = estatus(e);
-  const tabs = [['ant', 'Antecedentes'], ['seg', 'Seguimiento'], ['inc', 'Incapacidad y reintegro']];
+  const tabs = [['ant', 'Antecedentes'], ['seg', 'Valoraciones'], ['inc', 'Incapacidad y reintegro']];
   return `
   <div class="fhead"><div><button class="btn sm ghost" data-act="volver">← Embarazadas</button>
     <h1 style="margin-top:8px">${esc(e.Nombre)}</h1>
@@ -669,7 +712,7 @@ function fichaHTML() {
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
     <div class="acts"><button class="btn" data-act="desenlace">${(e.FechaParto || e.Resultado) ? 'Editar desenlace' : 'Registrar desenlace'}</button><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
   ${al.length ? `<div class="alerts">${al.map(a => `<div class="al ${a.n}">${esc(a.txt)}</div>`).join('')}</div>` : ''}
-  <div class="box">${ribbon(e, false)}</div>
+  <div class="box">${ribbon(e, false)}${planInc(e)}</div>
   <div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${state.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
   <div>${state.tab === 'seg' ? tabSeg(e) : state.tab === 'inc' ? tabInc(e) : tabAnt(e)}</div>`;
 }
@@ -752,14 +795,28 @@ function formDesenlace(e) {
 }
 
 function formSeg(e, s) {
-  const nuevo = !s; s = s || { Fecha: iso(todayD()), Tipo: 'Consulta en planta' };
+  const nuevo = !s, prev = segsOf(e.ID).filter(x => !s || x.ID !== s.ID);
+  if (nuevo) {
+    const nx = proximaValoracion(e, todayD());
+    s = { Fecha: iso(todayD()), Tipo: 'Consulta en planta', Talla: tallaOf(e), Tratamientos: prev[0] ? prev[0].Tratamientos : '', ProximaCita: nx ? iso(nx) : '' };
+  }
   openModal({
-    title: nuevo ? 'Nuevo seguimiento' : 'Editar seguimiento', body: formHTML(SEG_FIELDS, s),
+    title: nuevo ? 'Nueva valoración' : 'Editar valoración', body: formHTML(SEG_FIELDS, s),
+    onOpen() {
+      const pc = $('#f_ProximaCita');
+      pc.addEventListener('input', () => { pc.dataset.manual = '1'; });
+      $('#f_Fecha').addEventListener('change', () => {
+        if (pc.dataset.manual) return;
+        const d = pd($('#f_Fecha').value); if (!d) return;
+        const nx = proximaValoracion(e, d); pc.value = nx ? iso(nx) : '';
+      });
+    },
     async onSave() {
       const v = readForm(SEG_FIELDS);
       if (!v.Fecha) return modalError('Falta la fecha.'), false;
+      if (!v.Talla && !prev.some(x => x.Talla)) return modalError('Captura la talla en la primera valoración.'), false;
       await guardar('Seguimientos', { ...s, ...v, EmbID: e.ID });
-      cerrar(); toast('Seguimiento guardado'); render();
+      cerrar(); toast('Valoración guardada'); render();
     }
   });
 }
@@ -817,7 +874,7 @@ const ACCIONES = {
   tab: t => { state.tab = t.dataset.v; render(); },
   'seg-nuevo': () => formSeg(embById(state.sel), null),
   'seg-edit': t => formSeg(embById(state.sel), state.seg.find(x => x.ID === t.dataset.id)),
-  'seg-del': t => confirmar('Eliminar seguimiento', 'Se eliminará este registro de seguimiento.', 'Eliminar', async () => { await eliminar('Seguimientos', t.dataset.id); toast('Seguimiento eliminado'); render(); }),
+  'seg-del': t => confirmar('Eliminar valoración', 'Se eliminará esta valoración.', 'Eliminar', async () => { await eliminar('Seguimientos', t.dataset.id); toast('Valoración eliminada'); render(); }),
   'inc-nueva': () => formInc(embById(state.sel), null),
   'inc-edit': t => formInc(embById(state.sel), state.inc.find(x => x.ID === t.dataset.id)),
   'inc-del': t => confirmar('Eliminar incapacidad', 'Se eliminará la incapacidad y su valoración de reintegro.', 'Eliminar', async () => { await eliminar('Incapacidades', t.dataset.id); toast('Incapacidad eliminada'); render(); }),
