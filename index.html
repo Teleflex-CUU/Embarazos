@@ -710,7 +710,7 @@ function fichaHTML() {
     <h1 style="margin-top:8px">${esc(e.Nombre)}</h1>
     <div class="meta">N.º ${esc(e.Numero)} · ${esc(e.Planta || 'Sin planta')}${e.Puesto ? ' · ' + esc(e.Puesto) : ''}${e.Turno ? ' · ' + esc(e.Turno) : ''}</div>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${chip(e)}${st === 'Gestación' && s && s.days >= 0 ? `<span class="chip g">SDG ${sdgTxt(s)}</span>` : ''}${e.Riesgo === 'Alto' ? '<span class="chip hi">Alto riesgo</span>' : ''}</div></div>
-    <div class="acts"><button class="btn" data-act="desenlace">${(e.FechaParto || e.Resultado) ? 'Editar desenlace' : 'Registrar desenlace'}</button><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
+    <div class="acts"><button class="btn" data-act="desenlace">Finalizar seguimiento</button><button class="btn pri" data-act="seg-nuevo">Nueva valoración</button><button class="btn" data-act="editar">Editar datos</button><button class="btn ghost" data-act="eliminar">Eliminar</button></div></div>
   ${al.length ? `<div class="alerts">${al.map(a => `<div class="al ${a.n}">${esc(a.txt)}</div>`).join('')}</div>` : ''}
   <div class="box">${ribbon(e, false)}${planInc(e)}</div>
   <div class="stabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${state.tab === k ? 'on' : ''}" data-act="tab" data-v="${k}">${l}</button>`).join('')}</div>
@@ -783,13 +783,13 @@ function formEmbarazada(e) {
 
 function formDesenlace(e) {
   openModal({
-    title: 'Desenlace del embarazo',
+    title: 'Finalizar seguimiento',
     body: `<p class="mut" style="margin-top:0">${esc(e.Nombre)}</p>` + formHTML(DES_FIELDS, e),
     async onSave() {
       const v = readForm(DES_FIELDS);
       if (v.FechaParto && !v.Resultado) return modalError('Indica el resultado obstétrico.'), false;
       await guardar('Embarazadas', { ...e, ...v, Cerrado: v.Cerrado || 'No' });
-      cerrar(); toast('Desenlace guardado'); render();
+      cerrar(); toast('Seguimiento finalizado'); render();
     }
   });
 }
@@ -816,7 +816,7 @@ function formSeg(e, s) {
       if (!v.Fecha) return modalError('Falta la fecha.'), false;
       if (!v.Talla && !prev.some(x => x.Talla)) return modalError('Captura la talla en la primera valoración.'), false;
       await guardar('Seguimientos', { ...s, ...v, EmbID: e.ID });
-      cerrar(); toast('Valoración guardada'); render();
+      cerrar(); toast('Valoración guardada'); state.tab = 'seg'; render();
     }
   });
 }
