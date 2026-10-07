@@ -660,39 +660,40 @@ function panelHTML() {
 const TRL = { 1: '1.er trimestre', 2: '2.º trimestre', 3: '3.er trimestre', S: 'Sin trimestre' };
 function reporteRows() {
   const mp = new Map(state.emp.map(x => [keyNum(x.Numero), x]));
-  const vistos = new Map(); let dup = 0;
+  const vistos = new Map(); let dup = 0, sinFecha = 0;
   state.emb.forEach(e => {
     const st = estatus(e);
     if (e.FechaParto || !(st === 'Gestación' || st === 'En incapacidad')) return;
+    if (!fumOf(e)) { sinFecha++; return; }   // sin FUM ni FPP no entra al reporte (con FPP se calcula la FUM)
     const k = keyNum(e.Numero) || e.ID, ya = vistos.get(k);
     if (ya) { dup++; if (!fumOf(ya) && fumOf(e)) vistos.set(k, e); return; }
     vistos.set(k, e);
   });
   const rows = [...vistos.values()].map(e => {
     const s = sdgOf(e), x = mp.get(keyNum(e.Numero)) || {};
-    return { planta: e.Planta || 'Sin planta', tr: (s && s.days >= 0 && s.w <= 42) ? trim(s.w) : 'S', num: e.Numero, nombre: e.Nombre, area: x.Departamento || '', cat: x.Categoria || '', puesto: x.Puesto || e.Puesto || '' };
+    const ok = s.days >= 0 && s.w <= 42;
+    return { planta: e.Planta || 'Sin planta', tr: ok ? trim(s.w) : 'S', num: e.Numero, nombre: e.Nombre, puesto: x.Puesto || e.Puesto || '', sdg: ok ? sdgTxt(s) : (s.days < 0 ? 'Revisar FUM' : 'Pasó la FPP') };
   });
   const ord = p => { const i = PLANTAS.indexOf(p); return i >= 0 ? i : (p === 'Sin planta' ? 99 : 50); };
   rows.sort((a, b) => ord(a.planta) - ord(b.planta) || a.planta.localeCompare(b.planta) || String(a.tr).localeCompare(String(b.tr)) || a.nombre.localeCompare(b.nombre));
-  return { rows, dup };
+  return { rows, dup, sinFecha };
 }
 function reporteHTML() {
-  const { rows, dup } = reporteRows();
+  const { rows, dup, sinFecha } = reporteRows();
   const plantas = [...new Set(rows.map(r => r.planta))], T = [1, 2, 3, 'S'];
   const cnt = (p, t) => rows.filter(r => (p === null || r.planta === p) && (t === undefined || r.tr === t)).length;
-  const sinHC = rows.length && !rows.some(r => r.area || r.cat);
   const mx = `<table class="mx"><thead><tr><th>Planta</th><th>1.er trim.</th><th>2.º trim.</th><th>3.er trim.</th><th>Sin trimestre</th><th>Total</th></tr></thead><tbody>
     ${plantas.map(p => `<tr><td>${esc(p)}</td>${T.map(t => `<td>${cnt(p, t)}</td>`).join('')}<td><b>${cnt(p)}</b></td></tr>`).join('')}
     <tr><td><b>Total</b></td>${T.map(t => `<td><b>${cnt(null, t)}</b></td>`).join('')}<td><b>${rows.length}</b></td></tr></tbody></table>`;
   const sec = plantas.map(p => `<div class="box"><h2>${esc(p)} · ${cnt(p)}</h2>${T.filter(t => cnt(p, t)).map(t => `<h3>${TRL[t]} (${cnt(p, t)})</h3>
-    <div class="tablewrap"><table><thead><tr><th>No. empleado</th><th>Nombre</th><th>Área</th><th>Categoría</th><th>Puesto</th></tr></thead><tbody>
-    ${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.area || '—')}</td><td>${esc(r.cat || '—')}</td><td>${esc(r.puesto || '—')}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`).join('');
+    <div class="tablewrap"><table><thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Semanas de gestación</th></tr></thead><tbody>
+    ${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.sdg)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`).join('');
   return `<div class="rep">
-    <div class="rep-head"><div class="grow"><h1>Reporte de embarazadas</h1><div class="cnt" style="margin:4px 0 0">Al ${fmt(iso(todayD()))} · ${rows.length} embarazada${rows.length === 1 ? '' : 's'} actual${rows.length === 1 ? '' : 'es'} (en gestación o en incapacidad sin parto registrado). Trimestre según las semanas de gestación de hoy.</div></div>
+    <div class="rep-head"><div class="grow"><h1>Reporte de embarazadas</h1><div class="cnt" style="margin:4px 0 0">Al ${fmt(iso(todayD()))} · ${rows.length} embarazada${rows.length === 1 ? '' : 's'} actual${rows.length === 1 ? '' : 'es'} (en gestación o en incapacidad sin parto registrado). Semanas y trimestre de gestación al día de hoy (semanas+días); sin FUM se calculan con la FPP.</div></div>
       <button class="btn noprint" data-act="rep-xlsx">Descargar Excel</button><button class="btn noprint" data-act="rep-print">Imprimir o guardar PDF</button></div>
-    ${sinHC ? '<div class="al info noprint" style="margin-bottom:14px">Área y Categoría salen de la pestaña HeadCount. Si aparecen vacías, actualiza el script de Apps Script y publica una nueva versión.</div>' : ''}
+    ${sinFecha ? `<div class="al info noprint" style="margin-bottom:14px">${sinFecha} embarazada${sinFecha === 1 ? '' : 's'} sin FUM ni FPP no aparece${sinFecha === 1 ? '' : 'n'} en el reporte.</div>` : ''}
     ${dup ? `<div class="al media noprint" style="margin-bottom:14px">Se omitieron ${dup} registro${dup === 1 ? '' : 's'} con número de empleado repetido para no contar dos veces a la misma trabajadora.</div>` : ''}
-    ${rows.length ? `<div class="box">${mx}</div>${sec}${cnt(null, 'S') ? '<p class="cnt">“Sin trimestre”: sin FUM ni FPP, o con la FPP ya pasada y sin parto registrado.</p>' : ''}` : '<p class="empty">No hay embarazadas actuales registradas.</p>'}</div>`;
+    ${rows.length ? `<div class="box">${mx}</div>${sec}${cnt(null, 'S') ? '<p class="cnt">“Sin trimestre”: la FPP ya pasó y no hay parto registrado.</p>' : ''}` : '<p class="empty">No hay embarazadas actuales registradas.</p>'}</div>`;
 }
 function libroReporte() {
   const { rows } = reporteRows(), T = [1, 2, 3, 'S'], plantas = [...new Set(rows.map(r => r.planta))];
@@ -703,15 +704,15 @@ function libroReporte() {
   const w0 = XLSX.utils.aoa_to_sheet(res); w0['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, w0, 'Resumen');
   plantas.forEach(p => {
-    const aoa = [['Trimestre', 'No. empleado', 'Nombre', 'Área', 'Categoría', 'Puesto'], ...rows.filter(r => r.planta === p).map(r => [TRL[r.tr], String(r.num), r.nombre, r.area, r.cat, r.puesto])];
-    const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 26 }, { wch: 18 }, { wch: 30 }];
+    const aoa = [['Trimestre', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación'], ...rows.filter(r => r.planta === p).map(r => [TRL[r.tr], String(r.num), r.nombre, r.puesto, r.sdg])];
+    const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 30 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, w, p.replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || 'Planta');
   });
   return wb;
 }
 function descargarCSV() {
   const { rows } = reporteRows(), q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const csv = '\ufeff' + [['Planta', 'Trimestre', 'No. empleado', 'Nombre', 'Área', 'Categoría', 'Puesto'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.area, r.cat, r.puesto])].map(a => a.map(q).join(',')).join('\r\n');
+  const csv = '\ufeff' + [['Planta', 'Trimestre', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.puesto, r.sdg])].map(a => a.map(q).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `embarazadas_${iso(todayD())}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
