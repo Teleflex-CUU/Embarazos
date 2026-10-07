@@ -690,7 +690,7 @@ function reporteRows() {
   });
   const rows = [...cand.values()].map(({ e, L }) => {
     const x = mp.get(keyNum(e.Numero)) || {}, base = { planta: e.Planta || 'Sin planta', num: e.Numero, nombre: e.Nombre, puesto: x.Puesto || e.Puesto || '' };
-    if (L) return { ...base, tr: 'L', sdg: '', parto: L.parto ? fmt(iso(L.parto)) + (L.estimado ? ' (est.)' : '') : '—', fin: fmt(iso(L.fin)) };
+    if (L) return { ...base, tr: 'L', sdg: '', parto: L.parto ? fmt(iso(L.parto)) : '—', fin: fmt(iso(L.fin)) };
     const g = sdgOf(e), ok = g.days >= 0;
     return { ...base, tr: ok ? trim(g.w) : 'S', sdg: ok ? sdgTxt(g) : 'Revisar FUM', parto: '', fin: '' };
   });
@@ -708,7 +708,7 @@ function reporteHTML() {
     ${plantas.map(p => `<tr><td>${esc(p)}</td>${T.map(t => `<td>${cnt(p, t)}</td>`).join('')}<td><b>${cnt(p)}</b></td></tr>`).join('')}
     <tr><td><b>Total</b></td>${T.map(t => `<td><b>${cnt(null, t)}</b></td>`).join('')}<td><b>${rows.length}</b></td></tr></tbody></table>`;
   const tabla = (p, t) => t === 'L'
-    ? `<thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Fecha de parto</th><th>Término de lactancia (estimado)</th></tr></thead><tbody>${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.parto)}</td><td>${esc(r.fin)}</td></tr>`).join('')}</tbody>`
+    ? `<thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Fecha de parto</th><th>Término de lactancia</th></tr></thead><tbody>${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.parto)}</td><td>${esc(r.fin)}</td></tr>`).join('')}</tbody>`
     : `<thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Semanas de gestación</th></tr></thead><tbody>${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.sdg)}</td></tr>`).join('')}</tbody>`;
   const sec = plantas.map(p => `<div class="box"><h2>${esc(p)} · ${cnt(p)}</h2>${[1, 2, 3, 'S', 'L'].filter(t => cnt(p, t)).map(t => `<h3>${TRL[t]} (${cnt(p, t)})</h3><div class="tablewrap"><table>${tabla(p, t)}</table></div>`).join('')}</div>`).join('');
   return `<div class="rep">
@@ -727,17 +727,16 @@ function libroReporte() {
     ['Total', ...T.map(t => rows.filter(r => r.tr === t).length), rows.length]];
   const w0 = XLSX.utils.aoa_to_sheet(res); w0['!cols'] = [{ wch: 16 }, ...T.map(() => ({ wch: 15 })), { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, w0, 'Resumen');
-  plantas.forEach(p => {
-    const aoa = [['Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia (estimado)'],
-      ...rows.filter(r => r.planta === p).map(r => [TRL[r.tr], String(r.num), r.nombre, r.puesto, r.sdg, r.parto, r.fin])];
-    const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 30 }];
-    XLSX.utils.book_append_sheet(wb, w, p.replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || 'Planta');
-  });
+  const aoa = [['Planta', 'Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia'],
+    ...rows.map(r => [r.planta, TRL[r.tr], String(r.num), r.nombre, r.puesto, r.sdg, r.parto, r.fin])];
+  const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 20 }];
+  w['!autofilter'] = { ref: w['!ref'] };
+  XLSX.utils.book_append_sheet(wb, w, 'Listado');
   return wb;
 }
 function descargarCSV() {
   const { rows } = reporteRows(), q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const csv = '\ufeff' + [['Planta', 'Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia (estimado)'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.puesto, r.sdg, r.parto, r.fin])].map(a => a.map(q).join(',')).join('\r\n');
+  const csv = '\ufeff' + [['Planta', 'Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.puesto, r.sdg, r.parto, r.fin])].map(a => a.map(q).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `embarazadas_${iso(todayD())}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
