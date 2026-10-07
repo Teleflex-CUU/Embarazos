@@ -657,62 +657,87 @@ function panelHTML() {
   </div>`;
 }
 
-const TRL = { 1: '1.er trimestre', 2: '2.º trimestre', 3: '3.er trimestre', S: 'Sin trimestre' };
+const TRL = { 1: '1.er trimestre', 2: '2.º trimestre', 3: '3.er trimestre', L: 'Lactancia', S: 'Sin trimestre' };
+const DIAS_EMBARAZO_MAX = 294;   // 42 semanas: pasado este punto se asume que ya hubo parto
+
+function lactanciaReporte(e, st) {
+  if (e.Resultado === 'Aborto') return null;
+  const t = todayD(), s = sdgOf(e), fpp = fppOf(e);
+  let parto = pd(e.FechaParto) || null, estimado = false;
+  if (!parto && fpp && ((s && s.days > DIAS_EMBARAZO_MAX) || st === 'Reintegro pendiente' || st === 'Reincorporada')) { parto = fpp > t ? t : fpp; estimado = true; }
+  const ini = parto || pd(e.LactanciaInicio);
+  if (!ini) return null;
+  const fin = pd(e.LactanciaFin) || addMonths(ini, 6);
+  if (t < ini || t > fin) return null;
+  return { parto, estimado, fin };
+}
 function reporteRows() {
   const mp = new Map(state.emp.map(x => [keyNum(x.Numero), x]));
-  const vistos = new Map(); let dup = 0, sinFecha = 0;
+  const cand = new Map(); let dup = 0, sinFecha = 0, vencidas = 0;
+  const poner = (e, L) => {
+    const k = keyNum(e.Numero) || e.ID, ya = cand.get(k);
+    if (ya) { dup++; if (!fumOf(ya.e) && fumOf(e)) cand.set(k, { e, L }); return; }
+    cand.set(k, { e, L });
+  };
   state.emb.forEach(e => {
-    const st = estatus(e);
+    if (e.Cerrado === 'Sí') return;
+    const st = estatus(e), L = lactanciaReporte(e, st);
+    if (L) return poner(e, L);
     if (e.FechaParto || !(st === 'Gestación' || st === 'En incapacidad')) return;
     if (!fumOf(e)) { sinFecha++; return; }   // sin FUM ni FPP no entra al reporte (con FPP se calcula la FUM)
-    const k = keyNum(e.Numero) || e.ID, ya = vistos.get(k);
-    if (ya) { dup++; if (!fumOf(ya) && fumOf(e)) vistos.set(k, e); return; }
-    vistos.set(k, e);
+    if (sdgOf(e).days > DIAS_EMBARAZO_MAX) { vencidas++; return; }
+    poner(e, null);
   });
-  const rows = [...vistos.values()].map(e => {
-    const s = sdgOf(e), x = mp.get(keyNum(e.Numero)) || {};
-    const ok = s.days >= 0 && s.w <= 42;
-    return { planta: e.Planta || 'Sin planta', tr: ok ? trim(s.w) : 'S', num: e.Numero, nombre: e.Nombre, puesto: x.Puesto || e.Puesto || '', sdg: ok ? sdgTxt(s) : (s.days < 0 ? 'Revisar FUM' : 'Pasó la FPP') };
+  const rows = [...cand.values()].map(({ e, L }) => {
+    const x = mp.get(keyNum(e.Numero)) || {}, base = { planta: e.Planta || 'Sin planta', num: e.Numero, nombre: e.Nombre, puesto: x.Puesto || e.Puesto || '' };
+    if (L) return { ...base, tr: 'L', sdg: '', parto: L.parto ? fmt(iso(L.parto)) + (L.estimado ? ' (est.)' : '') : '—', fin: fmt(iso(L.fin)) };
+    const g = sdgOf(e), ok = g.days >= 0;
+    return { ...base, tr: ok ? trim(g.w) : 'S', sdg: ok ? sdgTxt(g) : 'Revisar FUM', parto: '', fin: '' };
   });
   const ord = p => { const i = PLANTAS.indexOf(p); return i >= 0 ? i : (p === 'Sin planta' ? 99 : 50); };
   rows.sort((a, b) => ord(a.planta) - ord(b.planta) || a.planta.localeCompare(b.planta) || String(a.tr).localeCompare(String(b.tr)) || a.nombre.localeCompare(b.nombre));
-  return { rows, dup, sinFecha };
+  return { rows, dup, sinFecha, vencidas };
 }
 function reporteHTML() {
-  const { rows, dup, sinFecha } = reporteRows();
-  const plantas = [...new Set(rows.map(r => r.planta))], T = [1, 2, 3, 'S'];
+  const { rows, dup, sinFecha, vencidas } = reporteRows();
+  const plantas = [...new Set(rows.map(r => r.planta))], T = [1, 2, 3, 'L'].concat(rows.some(r => r.tr === 'S') ? ['S'] : []);
+  const HD = { 1: '1.er trim.', 2: '2.º trim.', 3: '3.er trim.', L: 'Lactancia', S: 'Sin trimestre' };
   const cnt = (p, t) => rows.filter(r => (p === null || r.planta === p) && (t === undefined || r.tr === t)).length;
-  const mx = `<table class="mx"><thead><tr><th>Planta</th><th>1.er trim.</th><th>2.º trim.</th><th>3.er trim.</th><th>Sin trimestre</th><th>Total</th></tr></thead><tbody>
+  const nL = cnt(null, 'L'), nE = rows.length - nL;
+  const mx = `<table class="mx"><thead><tr><th>Planta</th>${T.map(t => `<th>${HD[t]}</th>`).join('')}<th>Total</th></tr></thead><tbody>
     ${plantas.map(p => `<tr><td>${esc(p)}</td>${T.map(t => `<td>${cnt(p, t)}</td>`).join('')}<td><b>${cnt(p)}</b></td></tr>`).join('')}
     <tr><td><b>Total</b></td>${T.map(t => `<td><b>${cnt(null, t)}</b></td>`).join('')}<td><b>${rows.length}</b></td></tr></tbody></table>`;
-  const sec = plantas.map(p => `<div class="box"><h2>${esc(p)} · ${cnt(p)}</h2>${T.filter(t => cnt(p, t)).map(t => `<h3>${TRL[t]} (${cnt(p, t)})</h3>
-    <div class="tablewrap"><table><thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Semanas de gestación</th></tr></thead><tbody>
-    ${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.sdg)}</td></tr>`).join('')}</tbody></table></div>`).join('')}</div>`).join('');
+  const tabla = (p, t) => t === 'L'
+    ? `<thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Fecha de parto</th><th>Término de lactancia (estimado)</th></tr></thead><tbody>${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.parto)}</td><td>${esc(r.fin)}</td></tr>`).join('')}</tbody>`
+    : `<thead><tr><th>No. empleado</th><th>Nombre</th><th>Puesto</th><th>Semanas de gestación</th></tr></thead><tbody>${rows.filter(r => r.planta === p && r.tr === t).map(r => `<tr><td>${esc(r.num)}</td><td>${esc(r.nombre)}</td><td>${esc(r.puesto || '—')}</td><td>${esc(r.sdg)}</td></tr>`).join('')}</tbody>`;
+  const sec = plantas.map(p => `<div class="box"><h2>${esc(p)} · ${cnt(p)}</h2>${[1, 2, 3, 'S', 'L'].filter(t => cnt(p, t)).map(t => `<h3>${TRL[t]} (${cnt(p, t)})</h3><div class="tablewrap"><table>${tabla(p, t)}</table></div>`).join('')}</div>`).join('');
   return `<div class="rep">
-    <div class="rep-head"><div class="grow"><h1>Reporte de embarazadas</h1><div class="cnt" style="margin:4px 0 0">Al ${fmt(iso(todayD()))} · ${rows.length} embarazada${rows.length === 1 ? '' : 's'} actual${rows.length === 1 ? '' : 'es'} (en gestación o en incapacidad sin parto registrado). Semanas y trimestre de gestación al día de hoy (semanas+días); sin FUM se calculan con la FPP.</div></div>
+    <div class="rep-head"><div class="grow"><h1>Reporte de embarazadas y lactantes</h1><div class="cnt" style="margin:4px 0 0">Al ${fmt(iso(todayD()))} · ${nE} embarazada${nE === 1 ? '' : 's'} actual${nE === 1 ? '' : 'es'} y ${nL} lactante${nL === 1 ? '' : 's'}. Embarazadas: semanas y trimestre de hoy (semanas+días; sin FUM se calculan con la FPP). Lactancia: 6 meses después del parto; si no hay fecha de parto se toma la FPP, y si hay un periodo de lactancia registrado se respeta su término.</div></div>
       <button class="btn noprint" data-act="rep-xlsx">Descargar Excel</button><button class="btn noprint" data-act="rep-print">Imprimir o guardar PDF</button></div>
     ${sinFecha ? `<div class="al info noprint" style="margin-bottom:14px">${sinFecha} embarazada${sinFecha === 1 ? '' : 's'} sin FUM ni FPP no aparece${sinFecha === 1 ? '' : 'n'} en el reporte.</div>` : ''}
+    ${vencidas ? `<div class="al media noprint" style="margin-bottom:14px">${vencidas} registro${vencidas === 1 ? '' : 's'} con la FPP muy pasada, sin parto registrado ni lactancia vigente, no se incluye${vencidas === 1 ? '' : 'n'}: registra el desenlace en Finalizar seguimiento.</div>` : ''}
     ${dup ? `<div class="al media noprint" style="margin-bottom:14px">Se omitieron ${dup} registro${dup === 1 ? '' : 's'} con número de empleado repetido para no contar dos veces a la misma trabajadora.</div>` : ''}
-    ${rows.length ? `<div class="box">${mx}</div>${sec}${cnt(null, 'S') ? '<p class="cnt">“Sin trimestre”: la FPP ya pasó y no hay parto registrado.</p>' : ''}` : '<p class="empty">No hay embarazadas actuales registradas.</p>'}</div>`;
+    ${rows.length ? `<div class="box">${mx}</div>${sec}${cnt(null, 'S') ? '<p class="cnt">“Sin trimestre”: la FUM es posterior a hoy; revísala.</p>' : ''}` : '<p class="empty">No hay embarazadas ni lactantes registradas.</p>'}</div>`;
 }
 function libroReporte() {
-  const { rows } = reporteRows(), T = [1, 2, 3, 'S'], plantas = [...new Set(rows.map(r => r.planta))];
+  const { rows } = reporteRows(), plantas = [...new Set(rows.map(r => r.planta))], T = [1, 2, 3, 'L'].concat(rows.some(r => r.tr === 'S') ? ['S'] : []);
   const wb = XLSX.utils.book_new();
-  const res = [['Planta', '1.er trimestre', '2.º trimestre', '3.er trimestre', 'Sin trimestre', 'Total'],
+  const res = [['Planta', ...T.map(t => TRL[t]), 'Total'],
     ...plantas.map(p => [p, ...T.map(t => rows.filter(r => r.planta === p && r.tr === t).length), rows.filter(r => r.planta === p).length]),
     ['Total', ...T.map(t => rows.filter(r => r.tr === t).length), rows.length]];
-  const w0 = XLSX.utils.aoa_to_sheet(res); w0['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 8 }];
+  const w0 = XLSX.utils.aoa_to_sheet(res); w0['!cols'] = [{ wch: 16 }, ...T.map(() => ({ wch: 15 })), { wch: 8 }];
   XLSX.utils.book_append_sheet(wb, w0, 'Resumen');
   plantas.forEach(p => {
-    const aoa = [['Trimestre', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación'], ...rows.filter(r => r.planta === p).map(r => [TRL[r.tr], String(r.num), r.nombre, r.puesto, r.sdg])];
-    const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 30 }, { wch: 20 }];
+    const aoa = [['Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia (estimado)'],
+      ...rows.filter(r => r.planta === p).map(r => [TRL[r.tr], String(r.num), r.nombre, r.puesto, r.sdg, r.parto, r.fin])];
+    const w = XLSX.utils.aoa_to_sheet(aoa); w['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, w, p.replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || 'Planta');
   });
   return wb;
 }
 function descargarCSV() {
   const { rows } = reporteRows(), q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const csv = '\ufeff' + [['Planta', 'Trimestre', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.puesto, r.sdg])].map(a => a.map(q).join(',')).join('\r\n');
+  const csv = '\ufeff' + [['Planta', 'Grupo', 'No. empleado', 'Nombre', 'Puesto', 'Semanas de gestación', 'Fecha de parto', 'Término de lactancia (estimado)'], ...rows.map(r => [r.planta, TRL[r.tr], r.num, r.nombre, r.puesto, r.sdg, r.parto, r.fin])].map(a => a.map(q).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `embarazadas_${iso(todayD())}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
